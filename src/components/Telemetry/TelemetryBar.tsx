@@ -55,10 +55,7 @@ interface TelemetryBarProps {
 }
 
 export const TelemetryBar: React.FC<TelemetryBarProps> = ({
-  currentNotes,
-  nextNotes,
-  currentChordName,
-  nextChordName,
+  currentSection,
   nextSection,
   barIndex,
   tempo,
@@ -95,48 +92,13 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
   isCountingIn = false,
   countInBeat = 0,
 }) => {
-  // Telemetry 1: Playing
-  const primaryCurrent = currentNotes.length > 0 ? currentNotes[0] : null;
-  const playingNoteTitle = currentChordName
-    ? currentChordName
-    : primaryCurrent
-    ? primaryCurrent.noteName.replace(/\d/, '')
-    : 'REST';
-
-  const playingAdvice = primaryCurrent?.isBend
-    ? 'EXPRESSION: BEND TO PITCH'
-    : primaryCurrent?.isSlide
-    ? `EXPRESSION: SLIDE TO ${primaryCurrent.slideToFret}`
-    : primaryCurrent?.isVibrato
-    ? 'EXPRESSION: WIDE VIBRATO'
-    : primaryCurrent?.isPalmMute
-    ? 'EXPRESSION: TIGHT PALM MUTE'
-    : currentNotes.length > 1
-    ? 'FULL CHORD ATTACK'
-    : 'LET IT BREATHE';
-
-  // Telemetry 2: Next Attack
-  const primaryNext = nextNotes.length > 0 ? nextNotes[0] : null;
-  const nextNoteTitle = nextChordName
-    ? nextChordName
-    : nextNotes.length > 1
-    ? nextNotes.map((n) => n.noteName.replace(/\d/, '')).join(' + ')
-    : primaryNext
-    ? primaryNext.noteName.replace(/\d/, '')
-    : '--';
-
-  const nextCue = nextNotes.length > 1 ? 'CUE: PREPARE CHORD SHAPE' : 'CUE: SINGLE STRING ATTACK';
-
-  // Telemetry 3: Next Section
+  // Bar number formatting
   const formattedBar = barIndex < 10 ? `00${barIndex}` : barIndex < 100 ? `0${barIndex}` : `${barIndex}`;
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
   const loopAPercent = loopA != null && duration > 0 ? (loopA / duration) * 100 : null;
   const loopBPercent = loopB != null && duration > 0 ? (loopB / duration) * 100 : null;
   const hasABLoop = loopA != null && loopB != null;
-  const loopDurationSec = hasABLoop
-    ? Math.max(0, (loopB as number) - (loopA as number))
-    : 0;
 
   const [isSeekbarHovered, setIsSeekbarHovered] = React.useState(false);
   const [hoverTime, setHoverTime] = React.useState<number | null>(null);
@@ -378,276 +340,62 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
         </div>
       </div>
 
-      {/* 2. Main Row: 3 Telemetry Cards + Integrated Transport Controls */}
+      {/* 2. Studio Transport & Practice Controls Bar */}
       <div
         style={{
           display: 'flex',
           flexDirection: 'row',
-          alignItems: 'stretch',
-          height: '78px',
-          padding: '0 16px',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          height: '58px',
+          padding: '0 20px',
+          gap: '16px',
         }}
       >
-        {/* Block 01 / PLAYING */}
+        {/* Left Side: Session Status & Practice Tools */}
         <div
           style={{
-            flex: '1 1 200px',
-            maxWidth: '240px',
-            borderRight: '1px solid #251e1e',
-            padding: '10px 14px',
             display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '10px',
+            flexShrink: 0,
           }}
         >
+          {/* Song Section & Bar Indicator Badge */}
           <div
             style={{
-              fontSize: '9.5px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 800,
-              color: '#8e8080',
-              letterSpacing: '0.8px',
               display: 'flex',
               alignItems: 'center',
-              gap: '5px',
-              marginBottom: '3px',
+              gap: '6px',
+              backgroundColor: '#1b1414',
+              border: '1px solid #332828',
+              borderRadius: '4px',
+              padding: '5px 10px',
             }}
+            title={`Bagian Lagu: ${currentSection || nextSection || 'Main'}\nBirama: ${barIndex}\nTempo: ${tempo} BPM · ${timeSignature}`}
           >
-            <span style={{ color: '#FF7A65' }}>01 /</span> PLAYING
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span
-              style={{
-                fontSize: '20px',
-                fontWeight: 900,
-                fontFamily: 'var(--font-mono)',
-                color: playingNoteTitle === 'REST' ? '#5a5050' : '#ffffff',
-              }}
-            >
-              {playingNoteTitle}
+            <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#FF7A65' }}>
+              BAR {formattedBar}
             </span>
-            {primaryCurrent?.isBend && (
-              <span
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 800,
-                  fontFamily: 'var(--font-mono)',
-                  color: '#f1fa8c',
-                  backgroundColor: 'rgba(241, 250, 140, 0.15)',
-                  border: '1px solid rgba(241, 250, 140, 0.4)',
-                  padding: '1px 5px',
-                  borderRadius: '3px',
-                }}
-              >
-                ⤴ BEND
-              </span>
-            )}
-            {primaryCurrent?.isSlide && (
-              <span
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 800,
-                  fontFamily: 'var(--font-mono)',
-                  color: '#8be9fd',
-                  backgroundColor: 'rgba(139, 233, 253, 0.15)',
-                  border: '1px solid rgba(139, 233, 253, 0.4)',
-                  padding: '1px 5px',
-                  borderRadius: '3px',
-                }}
-              >
-                ➔ SLIDE
-              </span>
-            )}
-            {primaryCurrent?.isVibrato && (
-              <span
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 800,
-                  fontFamily: 'var(--font-mono)',
-                  color: '#ff79c6',
-                  backgroundColor: 'rgba(255, 121, 198, 0.15)',
-                  border: '1px solid rgba(255, 121, 198, 0.4)',
-                  padding: '1px 5px',
-                  borderRadius: '3px',
-                }}
-              >
-                ∿ VIB
-              </span>
-            )}
-            {primaryCurrent?.isHammerPull && (
-              <span
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 800,
-                  fontFamily: 'var(--font-mono)',
-                  color: '#50fa7b',
-                  backgroundColor: 'rgba(80, 250, 123, 0.15)',
-                  border: '1px solid rgba(80, 250, 123, 0.4)',
-                  padding: '1px 5px',
-                  borderRadius: '3px',
-                }}
-              >
-                {primaryCurrent.hammerPullType === 'pull' ? 'PULL' : 'HAMMER'}
-              </span>
-            )}
-            {primaryCurrent?.isHarmonic && (
-              <span
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 800,
-                  fontFamily: 'var(--font-mono)',
-                  color: '#8be9fd',
-                  backgroundColor: 'rgba(139, 233, 253, 0.15)',
-                  border: '1px solid rgba(139, 233, 253, 0.4)',
-                  padding: '1px 5px',
-                  borderRadius: '3px',
-                }}
-              >
-                ◆ HARM
-              </span>
-            )}
-          </div>
-          <div
-            style={{
-              fontSize: '9.5px',
-              fontFamily: 'var(--font-mono)',
-              color: '#9e9191',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {playingAdvice}
-          </div>
-        </div>
-
-        {/* Block 02 / NEXT ATTACK */}
-        <div
-          style={{
-            flex: '1 1 200px',
-            maxWidth: '240px',
-            borderRight: '1px solid #251e1e',
-            padding: '10px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-          }}
-        >
-          <div
-            style={{
-              fontSize: '9.5px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 800,
-              color: '#8e8080',
-              letterSpacing: '0.8px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              marginBottom: '3px',
-            }}
-          >
-            <span style={{ color: '#FF7A65' }}>02 /</span> NEXT ATTACK
-          </div>
-          <div>
-            <span
-              style={{
-                fontSize: '20px',
-                fontWeight: 900,
-                fontFamily: 'var(--font-mono)',
-                color: nextNoteTitle === '--' ? '#5a5050' : '#FF7A65',
-              }}
-            >
-              {nextNoteTitle}
-            </span>
-          </div>
-          <div
-            style={{
-              fontSize: '9.5px',
-              fontFamily: 'var(--font-mono)',
-              color: '#9e9191',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {nextCue}
-          </div>
-        </div>
-
-        {/* Block 03 / NEXT SECTION */}
-        <div
-          style={{
-            flex: '1 1 200px',
-            maxWidth: '240px',
-            borderRight: '1px solid #251e1e',
-            padding: '10px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-          }}
-        >
-          <div
-            style={{
-              fontSize: '9.5px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 800,
-              color: '#8e8080',
-              letterSpacing: '0.8px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              marginBottom: '3px',
-            }}
-          >
-            <span style={{ color: '#FF7A65' }}>03 /</span> NEXT SECTION
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-            <span
-              style={{
-                fontSize: '16px',
-                fontWeight: 800,
-                fontFamily: 'var(--font-sans)',
-                color: '#ffffff',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {nextSection || 'Solo Section'}
-            </span>
+            <span style={{ color: '#4a3d3d', fontSize: '10px' }}>·</span>
             <span
               style={{
                 fontSize: '11px',
-                fontWeight: 800,
-                fontFamily: 'var(--font-mono)',
-                color: '#FF7A65',
+                fontWeight: 700,
+                fontFamily: 'var(--font-sans)',
+                color: '#e0d5d5',
+                maxWidth: '120px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
             >
-              BAR {formattedBar}
+              {currentSection || nextSection || 'Main'}
             </span>
           </div>
-          <div
-            style={{
-              fontSize: '9.5px',
-              fontFamily: 'var(--font-mono)',
-              color: '#9e9191',
-            }}
-          >
-            TEMPO: {tempo} BPM · {timeSignature}
-          </div>
-        </div>
 
-        {/* Right Side: Integrated Transport Controls */}
-        <div
-          style={{
-            flex: '2 1 350px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: '12px',
-            paddingLeft: '16px',
-          }}
-        >
+          <div style={{ width: '1px', height: '22px', backgroundColor: '#282020', margin: '0 2px' }} />
+
           {/* Speed Control with -/+ buttons */}
           <div
             style={{
@@ -662,8 +410,8 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                 onSpeedChange?.(newSpeed);
               }}
               style={{
-                width: '22px',
-                height: '22px',
+                width: '24px',
+                height: '24px',
                 borderRadius: '3px',
                 border: '1px solid #332828',
                 backgroundColor: '#1c1616',
@@ -682,15 +430,15 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
             </button>
             <div
               style={{
-                padding: '4px 6px',
+                padding: '4px 7px',
                 borderRadius: '4px',
                 backgroundColor: '#1c1616',
                 border: '1px solid #332828',
                 color: speed === 1.0 ? '#a89d9d' : '#FF7A65',
-                fontSize: '10.5px',
+                fontSize: '11px',
                 fontWeight: 700,
                 fontFamily: 'var(--font-mono)',
-                minWidth: '38px',
+                minWidth: '40px',
                 textAlign: 'center',
               }}
               title="Kecepatan pemutaran saat ini"
@@ -703,8 +451,8 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                 onSpeedChange?.(newSpeed);
               }}
               style={{
-                width: '22px',
-                height: '22px',
+                width: '24px',
+                height: '24px',
                 borderRadius: '3px',
                 border: '1px solid #332828',
                 backgroundColor: '#1c1616',
@@ -723,193 +471,130 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
             </button>
           </div>
 
-          {/* Loop toggle button */}
-          {onToggleLoop && (
-            <button
-              onClick={onToggleLoop}
-              style={{
-                padding: '7px 10px',
-                borderRadius: '4px',
-                border: isLooping ? '1px solid #FF7A65' : '1px solid #3d3232',
-                backgroundColor: isLooping ? 'rgba(255, 122, 101, 0.15)' : '#1f1919',
-                color: isLooping ? '#FF7A65' : '#a89d9d',
-                fontSize: '10.5px',
-                fontWeight: 700,
-                fontFamily: 'var(--font-mono)',
-                cursor: 'pointer',
-              }}
-              title="Ulangi bagian (Looping)"
-            >
-              LOOP
-            </button>
-          )}
+          {/* Solo Slow-Down 50% button */}
+          <button
+            onClick={onToggleSoloSlowdown}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '6px 11px',
+              borderRadius: '4px',
+              border: isSoloSlowdown ? '1.5px solid #FF7A65' : '1px solid #3d3232',
+              backgroundColor: isSoloSlowdown ? 'rgba(255, 122, 101, 0.2)' : '#1f1919',
+              color: isSoloSlowdown ? '#FF7A65' : '#c5b8b8',
+              fontSize: '10.5px',
+              fontWeight: 800,
+              fontFamily: 'var(--font-mono)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            title="Latih bagian solo dengan kecepatan 50%"
+          >
+            <Zap size={13} fill={isSoloSlowdown ? '#FF7A65' : 'none'} />
+            <span>SOLO 50%</span>
+          </button>
 
-          {/* A-B Looper Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {/* A-B Looper Cluster */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              backgroundColor: '#1a1414',
+              padding: '3px 5px',
+              borderRadius: '5px',
+              border: hasABLoop ? '1px solid #5a3830' : '1px solid #2d2424',
+            }}
+          >
+            {onToggleLoop && (
+              <button
+                onClick={onToggleLoop}
+                style={{
+                  padding: '5px 8px',
+                  borderRadius: '3px',
+                  border: isLooping ? '1px solid #FF7A65' : '1px solid #3d3232',
+                  backgroundColor: isLooping ? 'rgba(255, 122, 101, 0.15)' : '#1f1919',
+                  color: isLooping ? '#FF7A65' : '#a89d9d',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-mono)',
+                  cursor: 'pointer',
+                }}
+                title="Ulangi bagian (Looping global)"
+              >
+                LOOP
+              </button>
+            )}
+
             <button
               onClick={onSetLoopA}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
-                padding: '5px 8px',
+                gap: '3px',
+                padding: '5px 7px',
                 borderRadius: '3px',
-                border: loopA != null
-                  ? `1.5px solid #50fa7b`
-                  : '1px solid #3d3232',
-                backgroundColor: loopA != null
-                  ? (loopPulseOn && hasABLoop && isPlaying
-                    ? 'rgba(80, 250, 123, 0.45)'
-                    : 'rgba(80, 250, 123, 0.2)')
-                  : '#1f1919',
+                border: loopA != null ? '1px solid #50fa7b' : '1px solid #3d3232',
+                backgroundColor: loopA != null ? 'rgba(80, 250, 123, 0.15)' : '#1f1919',
                 color: loopA != null ? '#50fa7b' : '#a89d9d',
-                fontSize: '10px',
-                fontWeight: 800,
-                fontFamily: 'var(--font-mono)',
                 cursor: 'pointer',
-                transition: 'all 200ms ease',
-                boxShadow: (loopA != null && loopPulseOn && hasABLoop && isPlaying)
-                  ? '0 0 10px rgba(80,250,123,0.85), inset 0 0 4px rgba(80,250,123,0.35)'
-                  : loopA != null
-                    ? '0 0 4px rgba(80,250,123,0.35)'
-                    : 'none',
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
               }}
-              title="Tetapkan titik awal Loop A\nKeyboard shortcut:  ["
+              title={`Tetapkan titik awal Loop [A]\nKeyboard shortcut: [\n${loopA != null ? `A: ${formatTime(loopA)}` : 'Belum diatur'}`}
             >
               <span>A</span>
-              <span style={{
-                fontSize: '8px',
-                opacity: loopA != null ? 1 : 0.45,
-                fontWeight: 900,
-                color: loopA != null ? '#b9ffcf' : '#6e6565',
-                border: `0.5px solid ${loopA != null ? 'rgba(80,250,123,0.6)' : 'rgba(61,50,50,0.8)'}`,
-                padding: '0px 3px',
-                borderRadius: '2px',
-                lineHeight: '11px',
-              }}>
-                [
-              </span>
-              {loopA != null && (
-                <span style={{ fontSize: '9px', opacity: 0.95, marginLeft: '2px' }}>
-                  {formatTime(loopA)}
-                </span>
-              )}
+              <span style={{ fontSize: '9px', opacity: 0.7 }}>[</span>
+              {loopA != null && <span style={{ fontSize: '9px', color: '#c5b8b8' }}>{formatTime(loopA)}</span>}
             </button>
+
             <button
               onClick={onSetLoopB}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
-                padding: '5px 8px',
+                gap: '3px',
+                padding: '5px 7px',
                 borderRadius: '3px',
-                border: loopB != null
-                  ? `1.5px solid #FF7A65`
-                  : '1px solid #3d3232',
-                backgroundColor: loopB != null
-                  ? (loopPulseOn && hasABLoop && isPlaying
-                    ? 'rgba(255, 122, 101, 0.45)'
-                    : 'rgba(255, 122, 101, 0.2)')
-                  : '#1f1919',
+                border: loopB != null ? '1px solid #FF7A65' : '1px solid #3d3232',
+                backgroundColor: loopB != null ? 'rgba(255, 122, 101, 0.15)' : '#1f1919',
                 color: loopB != null ? '#FF7A65' : '#a89d9d',
-                fontSize: '10px',
-                fontWeight: 800,
-                fontFamily: 'var(--font-mono)',
                 cursor: 'pointer',
-                transition: 'all 200ms ease',
-                boxShadow: (loopB != null && loopPulseOn && hasABLoop && isPlaying)
-                  ? '0 0 10px rgba(255,122,101,0.85), inset 0 0 4px rgba(255,122,101,0.35)'
-                  : loopB != null
-                    ? '0 0 4px rgba(255,122,101,0.35)'
-                    : 'none',
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
               }}
-              title="Tetapkan titik akhir Loop B\nKeyboard shortcut:  ]"
+              title={`Tetapkan titik akhir Loop [B]\nKeyboard shortcut: ]\n${loopB != null ? `B: ${formatTime(loopB)}` : 'Belum diatur'}`}
             >
               <span>B</span>
-              <span style={{
-                fontSize: '8px',
-                opacity: loopB != null ? 1 : 0.45,
-                fontWeight: 900,
-                color: loopB != null ? '#ffd4cc' : '#6e6565',
-                border: `0.5px solid ${loopB != null ? 'rgba(255,122,101,0.6)' : 'rgba(61,50,50,0.8)'}`,
-                padding: '0px 3px',
-                borderRadius: '2px',
-                lineHeight: '11px',
-              }}>
-                ]
-              </span>
-              {loopB != null && (
-                <span style={{ fontSize: '9px', opacity: 0.95, marginLeft: '2px' }}>
-                  {formatTime(loopB)}
-                </span>
-              )}
+              <span style={{ fontSize: '9px', opacity: 0.7 }}>]</span>
+              {loopB != null && <span style={{ fontSize: '9px', color: '#c5b8b8' }}>{formatTime(loopB)}</span>}
             </button>
-            {hasABLoop && (
-              <>
-                <div
-                  aria-label="Durasi Loop A-B"
-                  title={`Durasi loop: ${loopDurationSec.toFixed(2)} detik`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '2px',
-                    padding: '4px 7px',
-                    borderRadius: '3px',
-                    border: loopPulseOn && isPlaying
-                      ? '1.5px solid rgba(80,250,123,0.75)'
-                      : '1px solid rgba(80,250,123,0.35)',
-                    backgroundColor: loopPulseOn && isPlaying
-                      ? 'rgba(80,250,123,0.18)'
-                      : 'rgba(31,25,25,0.9)',
-                    color: '#c1ffd3',
-                    cursor: 'default',
-                    fontSize: '9.5px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 800,
-                    transition: 'all 220ms ease',
-                    whiteSpace: 'nowrap',
-                    minWidth: '0',
-                  }}
-                >
-                  <span style={{
-                    fontSize: '10px',
-                    opacity: 0.9,
-                    color: loopPulseOn && isPlaying ? '#ffffff' : '#50fa7b',
-                    transition: 'all 220ms ease',
-                  }}>⟳</span>
-                  <span>{loopDurationSec.toFixed(1)}s</span>
-                </div>
-                <button
-                  onClick={onClearABLoop}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    padding: '4px 6px',
-                    borderRadius: '3px',
-                    border: '1px solid #5a4444',
-                    backgroundColor: '#2a1e1e',
-                    color: '#ff5555',
-                    cursor: 'pointer',
-                    fontSize: '9px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 700,
-                    transition: 'all 0.15s ease',
-                  }}
-                  title="Hapus pengaturan Loop A-B\nKeyboard shortcut:  Backspace"
-                >
-                  <span style={{
-                    fontSize: '8px',
-                    opacity: 0.8,
-                    border: '0.5px solid rgba(255,85,85,0.5)',
-                    padding: '0px 2px',
-                    borderRadius: '2px',
-                    lineHeight: '11px',
-                  }}>⌫</span>
-                  <X size={11} />
-                  <span>CLR</span>
-                </button>
-              </>
+
+            {hasABLoop && onClearABLoop && (
+              <button
+                onClick={onClearABLoop}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  padding: '4px 6px',
+                  borderRadius: '3px',
+                  border: '1px solid #5a4444',
+                  backgroundColor: '#2a1e1e',
+                  color: '#ff5555',
+                  cursor: 'pointer',
+                  fontSize: '9px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                }}
+                title="Hapus pengaturan Loop A-B\nKeyboard shortcut: Backspace"
+              >
+                <X size={11} />
+                <span>CLR</span>
+              </button>
             )}
           </div>
 
@@ -921,7 +606,7 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '5px',
-                padding: '7px 10px',
+                padding: '6px 10px',
                 borderRadius: '4px',
                 border: isFlipped ? '1.5px solid #8be9fd' : '1px solid #3d3232',
                 backgroundColor: isFlipped ? 'rgba(139, 233, 253, 0.15)' : '#1f1919',
@@ -939,31 +624,103 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               <span>FLIP</span>
             </button>
           )}
+        </div>
 
-          {/* Solo Slow-Down 50% button */}
+        {/* Center: Main Playback Controls */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            flexShrink: 0,
+          }}
+        >
+          {/* Stop button */}
           <button
-            onClick={onToggleSoloSlowdown}
+            onClick={onStop}
+            style={{
+              padding: '8px',
+              borderRadius: '4px',
+              border: '1px solid #362c2c',
+              backgroundColor: '#1f1919',
+              color: '#a89d9d',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            title="Hentikan & Reset"
+          >
+            <Square size={14} />
+          </button>
+
+          {/* Big Play/Pause Button */}
+          <button
+            onClick={onPlayPause}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '5px',
-              padding: '7px 12px',
+              gap: '7px',
+              padding: '8px 22px',
               borderRadius: '4px',
-              border: isSoloSlowdown ? '1.5px solid #FF7A65' : '1px solid #3d3232',
-              backgroundColor: isSoloSlowdown ? 'rgba(255, 122, 101, 0.2)' : '#1f1919',
-              color: isSoloSlowdown ? '#FF7A65' : '#c5b8b8',
-              fontSize: '11px',
+              border: 'none',
+              backgroundColor: isCountingIn ? '#ffb86c' : '#FF7A65',
+              color: '#120e0e',
+              fontSize: '12px',
               fontWeight: 800,
               fontFamily: 'var(--font-mono)',
               cursor: 'pointer',
+              boxShadow: isCountingIn
+                ? '0 0 18px rgba(255, 184, 108, 0.6)'
+                : '0 0 16px rgba(255, 122, 101, 0.4)',
               transition: 'all 0.15s ease',
             }}
-            title="Latih bagian solo dengan kecepatan 50%"
+            title={isCountingIn ? 'Hitungan awal aktif... Klik untuk batal' : isPlaying ? 'Jeda Lagu (Space)' : 'Putar Lagu (Space)'}
           >
-            <Zap size={13} fill={isSoloSlowdown ? '#FF7A65' : 'none'} />
-            <span>SOLO 50%</span>
+            {isCountingIn ? (
+              <>
+                <Timer size={15} />
+                <span>COUNT {countInBeat > 0 ? countInBeat : '...'}</span>
+              </>
+            ) : isPlaying ? (
+              <>
+                <Pause size={15} />
+                <span>PAUSE</span>
+              </>
+            ) : (
+              <>
+                <Play size={15} fill="#120e0e" />
+                <span>PLAY</span>
+              </>
+            )}
           </button>
 
+          {/* Time text */}
+          <div
+            style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              fontFamily: 'var(--font-mono)',
+              color: '#9e9191',
+              minWidth: '95px',
+              textAlign: 'center',
+            }}
+          >
+            <span style={{ color: '#ffffff' }}>{formatTime(currentTime)}</span>
+            <span style={{ margin: '0 3px', color: '#524747' }}>/</span>
+            <span>{formatTime(duration)}</span>
+          </div>
+        </div>
+
+        {/* Right Side: Audio & View Tools */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            flexShrink: 0,
+          }}
+        >
           {/* Metronome & Count-In Suite */}
           <div
             style={{
@@ -1063,80 +820,7 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
             )}
           </div>
 
-          {/* Stop button */}
-          <button
-            onClick={onStop}
-            style={{
-              padding: '8px',
-              borderRadius: '4px',
-              border: '1px solid #362c2c',
-              backgroundColor: '#1f1919',
-              color: '#a89d9d',
-              cursor: 'pointer',
-            }}
-            title="Hentikan & Reset"
-          >
-            <Square size={14} />
-          </button>
-
-          {/* Big Play/Pause Button */}
-          <button
-            onClick={onPlayPause}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 18px',
-              borderRadius: '4px',
-              border: 'none',
-              backgroundColor: isCountingIn ? '#ffb86c' : '#FF7A65',
-              color: '#120e0e',
-              fontSize: '12px',
-              fontWeight: 800,
-              fontFamily: 'var(--font-mono)',
-              cursor: 'pointer',
-              boxShadow: isCountingIn
-                ? '0 0 18px rgba(255, 184, 108, 0.6)'
-                : '0 0 16px rgba(255, 122, 101, 0.4)',
-              transition: 'all 0.15s ease',
-            }}
-            title={isCountingIn ? 'Hitungan awal aktif... Klik untuk batal' : isPlaying ? 'Jeda Lagu (Space)' : 'Putar Lagu (Space)'}
-          >
-            {isCountingIn ? (
-              <>
-                <Timer size={15} />
-                <span>COUNT {countInBeat > 0 ? countInBeat : '...'}</span>
-              </>
-            ) : isPlaying ? (
-              <>
-                <Pause size={15} />
-                <span>PAUSE</span>
-              </>
-            ) : (
-              <>
-                <Play size={15} fill="#120e0e" />
-                <span>PLAY</span>
-              </>
-            )}
-          </button>
-
-          {/* Time text */}
-          <div
-            style={{
-              fontSize: '11px',
-              fontWeight: 700,
-              fontFamily: 'var(--font-mono)',
-              color: '#9e9191',
-              minWidth: '90px',
-              textAlign: 'center',
-            }}
-          >
-            <span style={{ color: '#ffffff' }}>{formatTime(currentTime)}</span>
-            <span style={{ margin: '0 3px', color: '#524747' }}>/</span>
-            <span>{formatTime(duration)}</span>
-          </div>
-
-          {/* Volume Control */}
+          {/* Master Volume Control */}
           <div
             style={{
               display: 'flex',
