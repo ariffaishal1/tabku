@@ -13,6 +13,7 @@ interface StringFlowHighwayProps {
   activeTechniqueTitle?: string;
   loopAMs?: number;
   loopBMs?: number;
+  isFlipped?: boolean;
 }
 
 export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
@@ -25,6 +26,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
   activeTechniqueTitle,
   loopAMs,
   loopBMs,
+  isFlipped = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -121,6 +123,15 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
       const availableHeight = height - topPadding - bottomPadding;
       const stringSpacing = availableHeight / (numStrings - 1 || 1);
 
+      // Helper: compute Y for a given physical string number (1-based)
+      // Normal: String 1 (High E) at top, String 6 (Low E) at bottom
+      // Flipped (Player POV): String 6 at top, String 1 at bottom
+      const getStringY = (stringNum: number) => {
+        const index = stringNum - 1; // 0-based
+        const visualIndex = isFlipped ? (numStrings - 1 - index) : index;
+        return topPadding + visualIndex * stringSpacing;
+      };
+
       const STRIKE_X = 88; // Vertical Strike Line position
       const highwayWidth = width - STRIKE_X - 24;
 
@@ -212,7 +223,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
 
       for (let i = 0; i < numStrings; i++) {
         const stringNum = i + 1; // 1 = highest string (High E)
-        const y = topPadding + i * stringSpacing;
+        const y = getStringY(stringNum);
         const pitchName = tuningNames[i] || `S${stringNum}`;
         const isCurrentActiveString = activeNotes.some((n) => n.string === stringNum);
         const baseGauge = stringGauges[i] || 1.2;
@@ -338,8 +349,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
           const isAtStrikeLine = timeOffsetMs >= -50 && timeOffsetMs <= 90;
 
           beat.notes.forEach((n) => {
-            const stringIndex = n.string - 1;
-            const noteY = topPadding + stringIndex * stringSpacing;
+            const noteY = getStringY(n.string);
 
             const badgeW = n.fret >= 10 ? 28 : 24;
             const badgeH = 22;
@@ -654,7 +664,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [timeline, currentTimeMs, activeNotes, tuningNames, isPlaying, loopAMs, loopBMs]);
+  }, [timeline, currentTimeMs, activeNotes, tuningNames, isPlaying, loopAMs, loopBMs, isFlipped]);
 
   return (
     <div

@@ -7,6 +7,7 @@ interface FlatFretboard2DProps {
   activeTechniqueTitle?: string;
   tuningNames: string[];
   isPlaying?: boolean;
+  isFlipped?: boolean;
 }
 
 const INLAY_SINGLE_FRETS = [3, 5, 7, 9, 15, 17, 19, 21];
@@ -24,6 +25,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
   activeTechniqueTitle,
   tuningNames,
   isPlaying = false,
+  isFlipped = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -141,6 +143,15 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       const fretWidth = fretboardWidth / (TOTAL_FRETS + 1); // 25 columns (0..24)
       const stringSpacing = fretboardHeight / (numStrings - 1 || 1);
 
+      // Helper: compute Y for a given physical string number (1-based)
+      // Normal: String 1 (High E) at top, String 6 (Low E) at bottom
+      // Flipped (Player POV): String 6 at top, String 1 at bottom
+      const getStringY = (stringNum: number) => {
+        const index = stringNum - 1;
+        const visualIndex = isFlipped ? (numStrings - 1 - index) : index;
+        return topMargin + visualIndex * stringSpacing;
+      };
+
     // 1. Draw Fretboard Wood / Background Surface (with slight bevel above String 1)
     ctx.fillStyle = '#181414';
     ctx.fillRect(leftMargin, topMargin - 4, fretboardWidth, fretboardHeight + 8);
@@ -207,7 +218,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
     // 4. Draw Strings (1 to 6)
     for (let i = 0; i < numStrings; i++) {
       const stringNum = i + 1;
-      const y = topMargin + i * stringSpacing;
+      const y = getStringY(stringNum);
       const pitchName = tuningNames[i] || `S${stringNum}`;
 
       const isCurrentActive = activeNotes.some((n) => n.string === stringNum);
@@ -220,7 +231,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       ctx.fillText(pitchName, leftMargin - 12, y);
 
       // String line thickness (thicker for low bass strings)
-      const stringThickness = 0.9 + i * 0.45;
+      const stringThickness = 0.9 + (stringNum - 1) * 0.45;
       ctx.beginPath();
       ctx.moveTo(leftMargin, y);
       ctx.lineTo(endFretX, y);
@@ -235,8 +246,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       const isAlreadyNow = activeNotes.some((an) => an.string === n.string && an.fret === n.fret);
       if (isAlreadyNow) return;
 
-      const stringIndex = n.string - 1;
-      const noteY = topMargin + stringIndex * stringSpacing;
+      const noteY = getStringY(n.string);
       const fretCenterX = leftMargin + n.fret * fretWidth + fretWidth / 2;
 
       const markerSize = Math.min(fretWidth * 0.72, 22);
@@ -307,8 +317,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
 
     // 6. Draw NOW Sounding Notes (Filled Solid Box ■ + Visual Techniques)
     activeNotes.forEach((n) => {
-      const stringIndex = n.string - 1;
-      const noteY = topMargin + stringIndex * stringSpacing;
+      const noteY = getStringY(n.string);
       const fretCenterX = leftMargin + n.fret * fretWidth + fretWidth / 2;
 
       const markerW = Math.min(fretWidth * 0.8, 24);
@@ -694,7 +703,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
   return () => {
     cancelAnimationFrame(animId);
   };
-}, [activeNotes, nextNotes, tuningNames, isPlaying]);
+}, [activeNotes, nextNotes, tuningNames, isPlaying, isFlipped]);
 
   return (
     <div

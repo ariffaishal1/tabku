@@ -38,6 +38,10 @@ interface TelemetryBarProps {
   onSetLoopA?: () => void;
   onSetLoopB?: () => void;
   onClearABLoop?: () => void;
+
+  // Flip Strings (Player POV)
+  isFlipped?: boolean;
+  onToggleFlip?: () => void;
 }
 
 export const TelemetryBar: React.FC<TelemetryBarProps> = ({
@@ -70,6 +74,8 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
   onSetLoopA,
   onSetLoopB,
   onClearABLoop,
+  isFlipped = false,
+  onToggleFlip,
 }) => {
   // Telemetry 1: Playing
   const primaryCurrent = currentNotes.length > 0 ? currentNotes[0] : null;
@@ -888,6 +894,33 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               </>
             )}
           </div>
+
+          {/* Flip Strings (Player POV) toggle */}
+          {onToggleFlip && (
+            <button
+              onClick={onToggleFlip}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '7px 10px',
+                borderRadius: '4px',
+                border: isFlipped ? '1.5px solid #8be9fd' : '1px solid #3d3232',
+                backgroundColor: isFlipped ? 'rgba(139, 233, 253, 0.15)' : '#1f1919',
+                color: isFlipped ? '#8be9fd' : '#a89d9d',
+                fontSize: '10px',
+                fontWeight: 800,
+                fontFamily: 'var(--font-mono)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: isFlipped ? '0 0 6px rgba(139,233,253,0.3)' : 'none',
+              }}
+              title={`Balik urutan senar (Player POV)\nKeyboard shortcut: F\n${isFlipped ? 'Aktif: Senar 6 di atas, Senar 1 di bawah' : 'Normal: Senar 1 di atas, Senar 6 di bawah'}`}
+            >
+              <span style={{ fontSize: '12px' }}>⇅</span>
+              <span>FLIP</span>
+            </button>
+          )}
 
           {/* Solo Slow-Down 50% button */}
           <button

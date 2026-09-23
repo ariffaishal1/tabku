@@ -33,6 +33,7 @@ export const App: React.FC = () => {
   const [isLooping, setIsLooping] = useState<boolean>(false);
   const [volume, setVolume] = useState<number>(0.8);
   const [isSheetExpanded, setIsSheetExpanded] = useState<boolean>(false);
+  const [isFlipped, setIsFlipped] = useState<boolean>(false);
 
   // A-B Looper State (seconds, null = not set)
   const MIN_AB_LOOP_GAP_SEC = 0.5;
@@ -101,6 +102,10 @@ export const App: React.FC = () => {
             e.preventDefault();
             handleClearABLoop();
           }
+          break;
+        case 'KeyF':
+          e.preventDefault();
+          setIsFlipped(prev => !prev);
           break;
       }
     };
@@ -458,6 +463,7 @@ export const App: React.FC = () => {
             activeTechniqueTitle={activeTechnique?.title}
             loopAMs={loopA !== null ? loopA * 1000 : undefined}
             loopBMs={loopB !== null ? loopB * 1000 : undefined}
+            isFlipped={isFlipped}
           />
         </div>
 
@@ -469,6 +475,7 @@ export const App: React.FC = () => {
             activeTechniqueTitle={activeTechnique?.title}
             tuningNames={activeTuningNames}
             isPlaying={isPlaying}
+            isFlipped={isFlipped}
           />
         </div>
       </div>
@@ -538,6 +545,8 @@ export const App: React.FC = () => {
           onSetLoopA={handleSetLoopA}
           onSetLoopB={handleSetLoopB}
           onClearABLoop={handleClearABLoop}
+          isFlipped={isFlipped}
+          onToggleFlip={() => setIsFlipped(prev => !prev)}
         />
       </div>
     </div>
