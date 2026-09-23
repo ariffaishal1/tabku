@@ -1,0 +1,104 @@
+:root {
+  /* Develop Device Studio Palette: Warm Dark Charcoal / Obsidian with Coral Red */
+  --bg-primary: #120e0e;
+  --bg-surface: #161212;
+  --bg-surface-elevated: #1e1818;
+  --bg-surface-hover: #282020;
+  --bg-control: #251e1e;
+  --bg-control-active: #332929;
+
+  --border-subtle: #221c1c;
+  --border-medium: #2e2626;
+  --border-strong: #423737;
+
+  /* Typography Colors */
+  --text-primary: #ffffff;
+  --text-secondary: #c5b8b8;
+  --text-muted: #807272;
+  --text-inverse: #120e0e;
+
+  /* Accents - Signature Coral Red (#FF7A65) & Supporting Studio Hues */
+  --accent-coral: #FF7A65;
+  --accent-coral-glow: rgba(255, 122, 101, 0.25);
+  --accent-amber: #ffb86c;
+  --accent-cyan: #8be9fd;
+  --accent-green: #50fa7b;
+  --accent-red: #ff5555;
+
+  /* Fonts */
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Layout */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom Scrollbar for Pro-Audio feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+/* Range input styled like studio fader */
+input[type="range"] {
+  -webkit-appearance: none;
+  background: var(--border-medium);
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-coral);
+  border: 2px solid var(--bg-primary);
+  box-shadow: 0 0 8px rgba(255, 122, 101, 0.6);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
