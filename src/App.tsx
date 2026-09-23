@@ -72,6 +72,7 @@ export const App: React.FC = () => {
   const [scaleRoot, setScaleRoot] = useState<number>(9); // Default A (pitch class 9)
   const [scaleId, setScaleId] = useState<string>('minor_pentatonic');
   const [scaleDisplayMode, setScaleDisplayMode] = useState<ScaleDisplayMode>('degrees');
+  const [scalePosition, setScalePosition] = useState<number | 'all'>('all');
   const [backingProgressionName, setBackingProgressionName] = useState<string>(
     'A Minor Rock/Ballad Groove'
   );
@@ -697,29 +698,31 @@ export const App: React.FC = () => {
           position: 'relative',
         }}
       >
-        {/* Upper Panel: Horizontal Scrolling Highway (Look-Ahead Horizon 3.0s) */}
-        <div style={{ flex: 1, minHeight: '200px', display: 'flex' }}>
-          <StringFlowHighway
-            timeline={timeline}
-            currentTimeMs={currentTimeMs}
-            isPlaying={isPlaying}
-            activeNotes={currentSoundingNotes}
-            activeChordName={currentChordName}
-            tuningNames={timeline?.tuningNames || activeTuningNames}
-            activeTechniqueTitle={activeTechnique?.title}
-            loopAMs={loopA !== null ? loopA * 1000 : undefined}
-            loopBMs={loopB !== null ? loopB * 1000 : undefined}
-            isFlipped={isFlipped}
-            isScaleMode={isScaleMode}
-            scaleRoot={scaleRoot}
-            scaleId={scaleId}
-            scaleDisplayMode={scaleDisplayMode}
-            tuning={activeTuning}
-            backingProgressionName={backingProgressionName}
-          />
-        </div>
+        {/* Upper Panel: Horizontal Scrolling Highway (Hidden during Scale Practice to remove duplicate) */}
+        {!isScaleMode && (
+          <div style={{ flex: 1, minHeight: '200px', display: 'flex' }}>
+            <StringFlowHighway
+              timeline={timeline}
+              currentTimeMs={currentTimeMs}
+              isPlaying={isPlaying}
+              activeNotes={currentSoundingNotes}
+              activeChordName={currentChordName}
+              tuningNames={timeline?.tuningNames || activeTuningNames}
+              activeTechniqueTitle={activeTechnique?.title}
+              loopAMs={loopA !== null ? loopA * 1000 : undefined}
+              loopBMs={loopB !== null ? loopB * 1000 : undefined}
+              isFlipped={isFlipped}
+              isScaleMode={isScaleMode}
+              scaleRoot={scaleRoot}
+              scaleId={scaleId}
+              scaleDisplayMode={scaleDisplayMode}
+              tuning={activeTuning}
+              backingProgressionName={backingProgressionName}
+            />
+          </div>
+        )}
 
-        {/* Lower Panel: Flat 2D Fretboard (Frets 00-24 with NOW & NEXT Cues) */}
+        {/* Lower Panel: Flat 2D Fretboard (Full Height Canvas during Scale Practice) */}
         <div style={{ flex: 1, minHeight: '200px', display: 'flex' }}>
           <FlatFretboard2D
             activeNotes={currentSoundingNotes}
@@ -733,7 +736,9 @@ export const App: React.FC = () => {
             scaleRoot={scaleRoot}
             scaleId={scaleId}
             scaleDisplayMode={scaleDisplayMode}
+            scalePosition={scalePosition}
             onScaleChange={handleScaleConfigChange}
+            onScalePositionChange={setScalePosition}
             onToggleScaleMode={handleToggleScaleMode}
             onToggleDisplayMode={handleToggleDisplayMode}
             backingProgressionName={backingProgressionName}

@@ -5,6 +5,8 @@ import {
   SCALE_DEFINITIONS,
   checkNoteInScale,
   type ScaleDisplayMode,
+  SCALE_POSITION_OPTIONS,
+  getScalePositionInfo,
 } from '../../services/scaleTheory';
 
 interface FlatFretboard2DProps {
@@ -21,7 +23,9 @@ interface FlatFretboard2DProps {
   scaleRoot?: number;
   scaleId?: string;
   scaleDisplayMode?: ScaleDisplayMode;
+  scalePosition?: number | 'all';
   onScaleChange?: (root: number, scaleId: string) => void;
+  onScalePositionChange?: (position: number | 'all') => void;
   onToggleScaleMode?: () => void;
   onToggleDisplayMode?: () => void;
   backingProgressionName?: string;
@@ -48,7 +52,9 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
   scaleRoot = 9,
   scaleId = 'minor_pentatonic',
   scaleDisplayMode = 'degrees',
+  scalePosition = 'all',
   onScaleChange,
+  onScalePositionChange,
   onToggleScaleMode,
   onToggleDisplayMode,
   backingProgressionName,
@@ -63,6 +69,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
 
   const currentScale = SCALE_DEFINITIONS.find((s) => s.id === scaleId) || SCALE_DEFINITIONS[0];
   const currentRoot = ROOT_NOTES.find((r) => r.pitchClass === scaleRoot) || ROOT_NOTES[9];
+  const positionInfo = getScalePositionInfo(scaleRoot, scaleId, scalePosition);
 
   let activeFretText = '--';
   let positionText = 'IDLE';
@@ -70,11 +77,13 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
 
   if (activeNotes.length === 0) {
     if (isScaleMode) {
-      activeFretText = currentRoot.name;
-      positionText = currentScale.name.toUpperCase();
-      notesSummaryText = backingProgressionName
-        ? `JAM · ${backingProgressionName.toUpperCase()}`
-        : `${currentScale.description.toUpperCase()}`;
+      activeFretText = scalePosition === 'all' ? currentRoot.name : `BOX ${scalePosition}`;
+      positionText = scalePosition === 'all'
+        ? `${currentRoot.name} ${currentScale.name.toUpperCase()}`
+        : `${currentRoot.name} ${currentScale.name.toUpperCase()} · POSISI ${scalePosition}`;
+      notesSummaryText = scalePosition === 'all'
+        ? (backingProgressionName ? `JAM · ${backingProgressionName.toUpperCase()}` : `${currentScale.description.toUpperCase()}`)
+        : `${positionInfo.label.toUpperCase()}`;
     } else {
       activeFretText = '--';
       positionText = 'IDLE';
@@ -173,10 +182,11 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       const numStrings = tuningNames.length > 0 ? tuningNames.length : 6;
       const TOTAL_FRETS = 24; // 00 to 24 (25 total positions)
 
+      const isFullHeight = height > 320;
       const leftMargin = 48; // Space for string pitch labels
       const rightMargin = 20;
-      const topMargin = 46; // Generous headroom so String 1 techniques (Bend, Vibrato, etc.) are never covered by Highway
-      const bottomMargin = 26; // Space for fret numbers
+      const topMargin = isFullHeight ? 56 : 46; // Generous headroom for Scale Lab toolbar
+      const bottomMargin = isFullHeight ? 32 : 26; // Space for fret numbers
 
       const fretboardWidth = width - leftMargin - rightMargin;
       const fretboardHeight = Math.max(height - topMargin - bottomMargin, 60);
@@ -206,12 +216,13 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
 
       if (INLAY_SINGLE_FRETS.includes(f)) {
         ctx.beginPath();
-        ctx.arc(fretCenterX, midY, 4.5, 0, Math.PI * 2);
+        ctx.arc(fretCenterX, midY, isFullHeight ? 6 : 4.5, 0, Math.PI * 2);
         ctx.fill();
       } else if (INLAY_DOUBLE_FRETS.includes(f)) {
+        const doubleOffset = isFullHeight ? 26 : 18;
         ctx.beginPath();
-        ctx.arc(fretCenterX, midY - 18, 4, 0, Math.PI * 2);
-        ctx.arc(fretCenterX, midY + 18, 4, 0, Math.PI * 2);
+        ctx.arc(fretCenterX, midY - doubleOffset, isFullHeight ? 5 : 4, 0, Math.PI * 2);
+        ctx.arc(fretCenterX, midY + doubleOffset, isFullHeight ? 5 : 4, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -281,8 +292,65 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       ctx.stroke();
     }
 
+    // 4.4 Draw Position Bounding Box Highlight Frame (if a specific Box Position is chosen)
+    if (isScaleMode && scalePosition !== 'all') {
+      positionInfo.ranges.forEach((r) => {
+        const boxX1 = leftMargin + r.minFret * fretWidth;
+        const boxX2 = leftMargin + (r.maxFret + 1) * fretWidth;
+        const boxW = boxX2 - boxX1;
+        const boxY = topMargin - 4;
+        const boxH = fretboardHeight + 8;
+
+        ctx.save();
+        // Soft translucent cyber frame fill
+        ctx.fillStyle = 'rgba(255, 122, 101, 0.05)';
+        ctx.beginPath();
+        ctx.roundRect(boxX1, boxY, boxW, boxH, 6);
+        ctx.fill();
+
+        // Glowing cyber frame border
+        ctx.strokeStyle = '#FF7A65';
+        ctx.lineWidth = 1.8;
+        ctx.shadowColor = '#FF7A65';
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+
+        // Top cyber label badge on box
+        const minFStr = r.minFret < 10 ? `0${r.minFret}` : `${r.minFret}`;
+        const maxFStr = r.maxFret < 10 ? `0${r.maxFret}` : `${r.maxFret}`;
+        const badgeText = `BOX ${scalePosition} · FRET ${minFStr}–${maxFStr}`;
+        ctx.font = '800 8.5px "JetBrains Mono", monospace';
+        const bW = ctx.measureText(badgeText).width + 12;
+        const bH = 15;
+        const bX = boxX1 + (boxW - bW) / 2;
+        const bY = Math.max(3, boxY - bH - 3);
+
+        ctx.fillStyle = '#1e1414';
+        ctx.beginPath();
+        ctx.roundRect(bX, bY, bW, bH, 3);
+        ctx.fill();
+        ctx.strokeStyle = '#FF7A65';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = '#FF7A65';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(badgeText, boxX1 + boxW / 2, bY + bH / 2);
+
+        ctx.restore();
+      });
+    }
+
     // 4.5 Draw Scale Ghost Dots Roadmap Overlay (FR-NEXT-05)
     if (isScaleMode) {
+      const rootR = isFullHeight ? 11 : 8.5;
+      const blueR = isFullHeight ? 10 : 8;
+      const toneR = isFullHeight ? 9.5 : 7.5;
+      const rootFont = isFullHeight ? '900 10.5px "JetBrains Mono", monospace' : '900 8.5px "JetBrains Mono", monospace';
+      const blueFont = isFullHeight ? '900 9.5px "JetBrains Mono", monospace' : '900 8px "JetBrains Mono", monospace';
+      const toneFont = isFullHeight ? '700 9px "JetBrains Mono", monospace' : '700 7.5px "JetBrains Mono", monospace';
+
       for (let s = 1; s <= numStrings; s++) {
         const y = getStringY(s);
         const basePitch = (tuning && tuning[s - 1]) ?? [64, 59, 55, 50, 45, 40][s - 1] ?? (64 - (s - 1) * 5);
@@ -296,55 +364,64 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
           const isSoundingNow = activeNotes.some((an) => an.string === s && an.fret === f);
           if (isSoundingNow) continue;
 
+          // Check if this fret falls within the active box position (if specific position chosen)
+          const isInActiveBox = scalePosition === 'all' || positionInfo.ranges.some((r) => f >= r.minFret && f <= r.maxFret);
+
           const fretCenterX = leftMargin + f * fretWidth + fretWidth / 2;
 
           ctx.save();
+          if (!isInActiveBox) {
+            // Dimmed outside box
+            ctx.globalAlpha = 0.16;
+          }
+
           if (match.isRoot) {
             // Coral Red for Root Note
-            const radius = 8.5;
-            ctx.shadowColor = '#FF7A65';
-            ctx.shadowBlur = 10;
+            if (isInActiveBox) {
+              ctx.shadowColor = '#FF7A65';
+              ctx.shadowBlur = isFullHeight ? 14 : 10;
+            }
             ctx.fillStyle = '#FF7A65';
             ctx.beginPath();
-            ctx.arc(fretCenterX, y, radius, 0, Math.PI * 2);
+            ctx.arc(fretCenterX, y, rootR, 0, Math.PI * 2);
             ctx.fill();
 
             // Root label inside
             ctx.fillStyle = '#120e0e';
-            ctx.font = '900 8.5px "JetBrains Mono", monospace';
+            ctx.font = rootFont;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             const label = scaleDisplayMode === 'degrees' ? match.degree : match.noteName;
             ctx.fillText(label, fretCenterX, y);
           } else if (match.isBlueNote) {
             // Neon Magenta for Blue Note (♭5)
-            const radius = 8;
-            ctx.shadowColor = '#ff79c6';
-            ctx.shadowBlur = 8;
+            if (isInActiveBox) {
+              ctx.shadowColor = '#ff79c6';
+              ctx.shadowBlur = isFullHeight ? 12 : 8;
+            }
             ctx.fillStyle = '#ff79c6';
             ctx.beginPath();
-            ctx.arc(fretCenterX, y, radius, 0, Math.PI * 2);
+            ctx.arc(fretCenterX, y, blueR, 0, Math.PI * 2);
             ctx.fill();
 
             ctx.fillStyle = '#120e0e';
-            ctx.font = '900 8px "JetBrains Mono", monospace';
+            ctx.font = blueFont;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             const label = scaleDisplayMode === 'degrees' ? match.degree : match.noteName;
             ctx.fillText(label, fretCenterX, y);
           } else {
-            // Subtle translucent tone pill
-            const radius = 7.5;
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+            // Subtle tone pill
+            ctx.fillStyle = isInActiveBox ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)';
+            ctx.strokeStyle = isInActiveBox ? 'rgba(255, 255, 255, 0.32)' : 'rgba(255, 255, 255, 0.15)';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.arc(fretCenterX, y, radius, 0, Math.PI * 2);
+            ctx.arc(fretCenterX, y, toneR, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
 
-            ctx.fillStyle = '#d0c4c4';
-            ctx.font = '700 7.5px "JetBrains Mono", monospace';
+            ctx.fillStyle = isInActiveBox ? '#d0c4c4' : '#706464';
+            ctx.font = toneFont;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             const label = scaleDisplayMode === 'degrees' ? match.degree : match.noteName;
@@ -818,7 +895,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
   return () => {
     cancelAnimationFrame(animId);
   };
-}, [activeNotes, nextNotes, tuningNames, tuning, isPlaying, isFlipped, isScaleMode, scaleRoot, scaleId, scaleDisplayMode]);
+}, [activeNotes, nextNotes, tuningNames, tuning, isPlaying, isFlipped, isScaleMode, scaleRoot, scaleId, scaleDisplayMode, scalePosition]);
 
   return (
     <div
@@ -1052,6 +1129,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <span style={{ fontSize: '9px', color: '#7a7070', fontWeight: 700 }}>ROOT</span>
                   <select
+                    id="scale-root-select"
                     value={scaleRoot}
                     onChange={(e) => onScaleChange?.(parseInt(e.target.value, 10), scaleId)}
                     style={{
@@ -1079,6 +1157,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <span style={{ fontSize: '9px', color: '#7a7070', fontWeight: 700 }}>SCALE</span>
                   <select
+                    id="scale-type-select"
                     value={scaleId}
                     onChange={(e) => onScaleChange?.(scaleRoot, e.target.value)}
                     style={{
@@ -1100,6 +1179,49 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Position / Box Selector (Segmented Pill Cluster) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                  <span style={{ fontSize: '9px', color: '#7a7070', fontWeight: 700, marginRight: '2px' }}>POSISI</span>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      backgroundColor: '#181414',
+                      border: '1px solid #362c2c',
+                      borderRadius: '4px',
+                      padding: '1px',
+                      gap: '1px',
+                    }}
+                  >
+                    {SCALE_POSITION_OPTIONS.map((opt) => {
+                      const isSelected = scalePosition === opt.value;
+                      const labelShort = opt.value === 'all' ? 'ALL' : `${opt.value}`;
+                      return (
+                        <button
+                          key={opt.value}
+                          id={`scale-pos-btn-${opt.value}`}
+                          onClick={() => onScalePositionChange?.(opt.value)}
+                          title={opt.label}
+                          style={{
+                            backgroundColor: isSelected ? '#8be9fd' : 'transparent',
+                            color: isSelected ? '#120e0e' : '#a89d9d',
+                            border: 'none',
+                            borderRadius: '3px',
+                            padding: '2px 7px',
+                            fontSize: '9.5px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: isSelected ? 900 : 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          {labelShort}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Degrees / Note Names Toggle */}
@@ -1214,6 +1336,23 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
                   />
                   <span style={{ color: '#d0c4c4', fontWeight: 700 }}>SCALE TONE</span>
                 </span>
+                {scalePosition !== 'all' && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '1px 6px',
+                      backgroundColor: 'rgba(139, 233, 253, 0.1)',
+                      border: '1px solid rgba(139, 233, 253, 0.35)',
+                      borderRadius: '3px',
+                      color: '#8be9fd',
+                      fontWeight: 800,
+                      fontSize: '9px',
+                    }}
+                  >
+                    BOX {scalePosition} ACTIVE
+                  </span>
+                )}
                 <span style={{ color: '#362c2c' }}>|</span>
               </>
             )}

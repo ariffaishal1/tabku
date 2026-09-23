@@ -138,6 +138,101 @@ export function checkNoteInScale(
   };
 }
 
+export interface ScaleFretRange {
+  minFret: number;
+  maxFret: number;
+}
+
+export interface ScalePositionInfo {
+  position: number | 'all';
+  label: string;
+  ranges: ScaleFretRange[];
+}
+
+export const SCALE_POSITION_OPTIONS = [
+  { value: 'all', label: 'Semua Fret (00–24)' },
+  { value: 1, label: 'Posisi 1 (Box 1)' },
+  { value: 2, label: 'Posisi 2 (Box 2)' },
+  { value: 3, label: 'Posisi 3 (Box 3)' },
+  { value: 4, label: 'Posisi 4 (Box 4)' },
+  { value: 5, label: 'Posisi 5 (Box 5)' },
+] as const;
+
+/**
+ * Calculates fret ranges for standard guitar scale positions / box patterns (CAGED & Pentatonic boxes)
+ * and includes their octave repeats across a 24-fret neck.
+ */
+export function getScalePositionInfo(
+  rootPitchClass: number,
+  scaleId: string,
+  position: number | 'all'
+): ScalePositionInfo {
+  if (position === 'all') {
+    return {
+      position: 'all',
+      label: 'Semua Fret (00–24)',
+      ranges: [{ minFret: 0, maxFret: 24 }],
+    };
+  }
+
+  // Root on String 6 (Low E = pitch class 4)
+  const fRoot = ((rootPitchClass - 4) % 12 + 12) % 12;
+
+  let baseMin = 0;
+  let baseMax = 3;
+
+  if (scaleId === 'major_pentatonic') {
+    switch (position) {
+      case 1: baseMin = fRoot - 1; baseMax = fRoot + 2; break;
+      case 2: baseMin = fRoot + 1; baseMax = fRoot + 4; break;
+      case 3: baseMin = fRoot + 4; baseMax = fRoot + 7; break;
+      case 4: baseMin = fRoot + 6; baseMax = fRoot + 9; break;
+      case 5: baseMin = fRoot + 8; baseMax = fRoot + 11; break;
+      default: baseMin = fRoot - 1; baseMax = fRoot + 2; break;
+    }
+  } else {
+    // Minor Pentatonic, Blues, and Diatonic box shapes
+    switch (position) {
+      case 1: baseMin = fRoot; baseMax = fRoot + 3; break;
+      case 2: baseMin = fRoot + 2; baseMax = fRoot + 5; break;
+      case 3: baseMin = fRoot + 5; baseMax = fRoot + 8; break;
+      case 4: baseMin = fRoot + 7; baseMax = fRoot + 10; break;
+      case 5: baseMin = fRoot + 9; baseMax = fRoot + 12; break;
+      default: baseMin = fRoot; baseMax = fRoot + 3; break;
+    }
+  }
+
+  // Generate all octave copies within [0..24] frets
+  const ranges: ScaleFretRange[] = [];
+  const candidateOffsets = [-24, -12, 0, 12, 24];
+
+  for (const offset of candidateOffsets) {
+    const minF = baseMin + offset;
+    const maxF = baseMax + offset;
+
+    // Check if range overlaps [0..24]
+    if (maxF >= 0 && minF <= 24) {
+      const clampedMin = Math.max(0, minF);
+      const clampedMax = Math.min(24, maxF);
+      if (!ranges.some((r) => r.minFret === clampedMin && r.maxFret === clampedMax)) {
+        ranges.push({ minFret: clampedMin, maxFret: clampedMax });
+      }
+    }
+  }
+
+  ranges.sort((a, b) => a.minFret - b.minFret);
+
+  const primaryRange = ranges.find((r) => r.minFret >= fRoot - 2) || ranges[0];
+  const minPad = primaryRange ? (primaryRange.minFret < 10 ? `0${primaryRange.minFret}` : `${primaryRange.minFret}`) : '00';
+  const maxPad = primaryRange ? (primaryRange.maxFret < 10 ? `0${primaryRange.maxFret}` : `${primaryRange.maxFret}`) : '24';
+
+  return {
+    position,
+    label: `Posisi ${position} (Box ${position}) · Fret ${minPad}–${maxPad}`,
+    ranges,
+  };
+}
+
 /**
  * Standard guitar chord voicings in AlphaTex tab notation format (frets on strings 6 to 1).
  * Strings order in AlphaTex chord notation: (string.fret string.fret ...)
