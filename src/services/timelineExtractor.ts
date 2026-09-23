@@ -37,6 +37,13 @@ export interface SectionMarker {
   barIndex: number;
 }
 
+export interface MetronomeClick {
+  timeMs: number;
+  barIndex: number;
+  beatNumber: number;
+  isStrong: boolean;
+}
+
 export interface SongTimeline {
   beats: ExtractedBeat[];
   sections: SectionMarker[];
@@ -44,6 +51,8 @@ export interface SongTimeline {
   trackIndex: number;
   tuning: number[];
   tuningNames: string[];
+  metronomeBeats?: MetronomeClick[];
+  timeSignature?: string;
 }
 
 const TICKS_PER_QUARTER = 960;
@@ -82,6 +91,7 @@ export function extractSongTimeline(score: alphaTab.model.Score, trackIndex: num
 
   const sections: SectionMarker[] = [];
   let currentSectionName = 'Intro';
+  const metronomeBeats: MetronomeClick[] = [];
 
   for (let i = 0; i < score.masterBars.length; i++) {
     const mb = score.masterBars[i];
@@ -106,6 +116,18 @@ export function extractSongTimeline(score: alphaTab.model.Score, trackIndex: num
     // Milliseconds per tick = 60000 / (BPM * 960)
     const msPerTick = 60000 / (currentTempo * TICKS_PER_QUARTER);
     const barDurationMs = durationTicks * msPerTick;
+
+    // Generate metronome beat pulses for this bar
+    const numBeats = mb.timeSignatureNumerator || 4;
+    const beatDurationMs = barDurationMs / numBeats;
+    for (let b = 0; b < numBeats; b++) {
+      metronomeBeats.push({
+        timeMs: currentAccumulatedMs + b * beatDurationMs,
+        barIndex: i + 1,
+        beatNumber: b + 1,
+        isStrong: b === 0,
+      });
+    }
 
     masterBarTimeline.push({
       index: i,
@@ -217,6 +239,10 @@ export function extractSongTimeline(score: alphaTab.model.Score, trackIndex: num
   // Sort beats by startMs
   beats.sort((a, b) => a.startMs - b.startMs);
 
+  const timeSignature = score.masterBars.length > 0
+    ? `${score.masterBars[0].timeSignatureNumerator || 4}/${score.masterBars[0].timeSignatureDenominator || 4}`
+    : '4/4';
+
   return {
     beats,
     sections,
@@ -224,6 +250,8 @@ export function extractSongTimeline(score: alphaTab.model.Score, trackIndex: num
     trackIndex: targetTrack.index,
     tuning,
     tuningNames,
+    metronomeBeats,
+    timeSignature,
   };
 }
 

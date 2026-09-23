@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, Square, Zap, Music, Volume2, VolumeX, X } from 'lucide-react';
+import { Play, Pause, Square, Zap, Music, Volume2, VolumeX, X, Metronome, Timer } from 'lucide-react';
 import type { ExtractedNote } from '../../services/timelineExtractor';
 import { formatTime } from '../../utils/guitarMath';
 
@@ -8,8 +8,8 @@ interface TelemetryBarProps {
   nextNotes: ExtractedNote[];
   currentChordName?: string;
   nextChordName?: string;
-  currentSection: string;
-  nextSection: string;
+  currentSection?: string;
+  nextSection?: string;
   barIndex: number;
   tempo: number;
   timeSignature?: string;
@@ -24,8 +24,8 @@ interface TelemetryBarProps {
   speed: number;
   isSoloSlowdown: boolean;
   onToggleSoloSlowdown: () => void;
-  isLooping?: boolean;
-  onToggleLoop?: () => void;
+  isLooping: boolean;
+  onToggleLoop: () => void;
   isSheetExpanded: boolean;
   onToggleSheet: () => void;
   volume: number;
@@ -42,6 +42,16 @@ interface TelemetryBarProps {
   // Flip Strings (Player POV)
   isFlipped?: boolean;
   onToggleFlip?: () => void;
+
+  // Metronome & Count-In
+  isMetronomeOn?: boolean;
+  onToggleMetronome?: () => void;
+  metronomeVolume?: number;
+  onMetronomeVolumeChange?: (vol: number) => void;
+  isCountInEnabled?: boolean;
+  onToggleCountIn?: () => void;
+  isCountingIn?: boolean;
+  countInBeat?: number;
 }
 
 export const TelemetryBar: React.FC<TelemetryBarProps> = ({
@@ -76,6 +86,14 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
   onClearABLoop,
   isFlipped = false,
   onToggleFlip,
+  isMetronomeOn = false,
+  onToggleMetronome,
+  metronomeVolume = 0.7,
+  onMetronomeVolumeChange,
+  isCountInEnabled = false,
+  onToggleCountIn,
+  isCountingIn = false,
+  countInBeat = 0,
 }) => {
   // Telemetry 1: Playing
   const primaryCurrent = currentNotes.length > 0 ? currentNotes[0] : null;
@@ -946,6 +964,105 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
             <span>SOLO 50%</span>
           </button>
 
+          {/* Metronome & Count-In Suite */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              backgroundColor: '#181313',
+              padding: '3px 6px',
+              borderRadius: '5px',
+              border: isMetronomeOn || isCountInEnabled ? '1px solid #5a4730' : '1px solid #2d2424',
+              transition: 'border 0.2s ease',
+            }}
+          >
+            {/* Metronome Toggle */}
+            {onToggleMetronome && (
+              <button
+                onClick={onToggleMetronome}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '5px 8px',
+                  borderRadius: '3px',
+                  border: isMetronomeOn ? '1.5px solid #ffb86c' : '1px solid #3d3232',
+                  backgroundColor: isMetronomeOn ? 'rgba(255, 184, 108, 0.15)' : '#1f1919',
+                  color: isMetronomeOn ? '#ffb86c' : '#a89d9d',
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-mono)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxShadow: isMetronomeOn ? '0 0 8px rgba(255, 184, 108, 0.3)' : 'none',
+                }}
+                title={`Metronome Click Track\nKeyboard shortcut: M\n${isMetronomeOn ? 'Aktif (Ketukan menyala saat lagu berputar)' : 'Mati (Klik untuk menyalakan ketukan)'}`}
+              >
+                <Metronome size={12} />
+                <span>METRO</span>
+              </button>
+            )}
+
+            {/* Count-In 1-Bar Toggle */}
+            {onToggleCountIn && (
+              <button
+                onClick={onToggleCountIn}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '5px 7px',
+                  borderRadius: '3px',
+                  border: isCountInEnabled ? '1.5px solid #ffb86c' : '1px solid #3d3232',
+                  backgroundColor: isCountInEnabled ? 'rgba(255, 184, 108, 0.15)' : '#1f1919',
+                  color: isCountInEnabled ? '#ffb86c' : '#a89d9d',
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-mono)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxShadow: isCountInEnabled ? '0 0 8px rgba(255, 184, 108, 0.3)' : 'none',
+                }}
+                title={`Count-In 1 Birama\n${isCountInEnabled ? 'Aktif: Memberi ketukan hitungan awal 1 birama sebelum lagu berputar' : 'Mati: Lagu langsung berputar saat Play ditekan'}`}
+              >
+                <Timer size={12} />
+                <span>COUNT-IN</span>
+              </button>
+            )}
+
+            {/* Metronome Click Volume Slider */}
+            {onMetronomeVolumeChange && (isMetronomeOn || isCountInEnabled) && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  marginLeft: '2px',
+                  paddingLeft: '4px',
+                  borderLeft: '1px solid #332828',
+                }}
+                title={`Volume Metronom: ${Math.round(metronomeVolume * 100)}%`}
+              >
+                <span style={{ fontSize: '9px', color: '#ffb86c', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>VOL</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={metronomeVolume}
+                  onChange={(e) => onMetronomeVolumeChange(parseFloat(e.target.value))}
+                  style={{
+                    width: '42px',
+                    height: '4px',
+                    accentColor: '#ffb86c',
+                    cursor: 'pointer',
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
           {/* Stop button */}
           <button
             onClick={onStop}
@@ -972,18 +1089,35 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               padding: '8px 18px',
               borderRadius: '4px',
               border: 'none',
-              backgroundColor: '#FF7A65',
+              backgroundColor: isCountingIn ? '#ffb86c' : '#FF7A65',
               color: '#120e0e',
               fontSize: '12px',
               fontWeight: 800,
               fontFamily: 'var(--font-mono)',
               cursor: 'pointer',
-              boxShadow: '0 0 16px rgba(255, 122, 101, 0.4)',
+              boxShadow: isCountingIn
+                ? '0 0 18px rgba(255, 184, 108, 0.6)'
+                : '0 0 16px rgba(255, 122, 101, 0.4)',
               transition: 'all 0.15s ease',
             }}
+            title={isCountingIn ? 'Hitungan awal aktif... Klik untuk batal' : isPlaying ? 'Jeda Lagu (Space)' : 'Putar Lagu (Space)'}
           >
-            {isPlaying ? <Pause size={15} /> : <Play size={15} fill="#120e0e" />}
-            <span>{isPlaying ? 'PAUSE' : 'PLAY'}</span>
+            {isCountingIn ? (
+              <>
+                <Timer size={15} />
+                <span>COUNT {countInBeat > 0 ? countInBeat : '...'}</span>
+              </>
+            ) : isPlaying ? (
+              <>
+                <Pause size={15} />
+                <span>PAUSE</span>
+              </>
+            ) : (
+              <>
+                <Play size={15} fill="#120e0e" />
+                <span>PLAY</span>
+              </>
+            )}
           </button>
 
           {/* Time text */}

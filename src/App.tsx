@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { TopNav } from './components/Header/TopNav';
 import { TrackSelector } from './components/Header/TrackSelector';
 import { StringFlowHighway } from './components/StringFlow/StringFlowHighway';
@@ -11,6 +11,7 @@ import {
   type ExtractedNote,
   getCurrentAndNextBeats,
 } from './services/timelineExtractor';
+import { metronome } from './services/metronome';
 import type { TabNote, TrackInfo, ActiveChord, ActiveTechnique } from './types/guitar';
 
 export const App: React.FC = () => {
@@ -34,6 +35,23 @@ export const App: React.FC = () => {
   const [volume, setVolume] = useState<number>(0.8);
   const [isSheetExpanded, setIsSheetExpanded] = useState<boolean>(false);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
+
+  // Metronome & Count-In State
+  const [timeSignature, setTimeSignature] = useState<string>('4/4');
+  const [isMetronomeOn, setIsMetronomeOn] = useState<boolean>(false);
+  const [metronomeVolume, setMetronomeVolume] = useState<number>(0.7);
+  const [isCountInEnabled, setIsCountInEnabled] = useState<boolean>(false);
+  const [isCountingIn, setIsCountingIn] = useState<boolean>(false);
+  const [countInBeat, setCountInBeat] = useState<number>(0);
+
+  const isMetronomeOnRef = useRef<boolean>(false);
+  const isCountingInRef = useRef<boolean>(false);
+  const countInTimeoutsRef = useRef<number[]>([]);
+  const lastScheduledBeatTimeRef = useRef<number>(-1);
+  const timelineRef = useRef<SongTimeline | null>(null);
+  const tempoRef = useRef<number>(tempo);
+  const timeSignatureRef = useRef<string>('4/4');
+  const currentTimeMsRef = useRef<number>(0);
 
   // A-B Looper State (seconds, null = not set)
   const MIN_AB_LOOP_GAP_SEC = 0.5;
@@ -61,59 +79,32 @@ export const App: React.FC = () => {
   const activeTuning = activeTrack?.tuning || [64, 59, 55, 50, 45, 40];
   const activeTuningNames = activeTrack?.tuningNames || ['E4', 'B3', 'G3', 'D3', 'A2', 'E2'];
 
-  // Keyboard shortcut: Spacebar for Play/Pause
+  // Keep refs in sync for animation loop & callbacks
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    isMetronomeOnRef.current = isMetronomeOn;
+  }, [isMetronomeOn]);
 
-      switch (e.code) {
-        case 'Space':
-          e.preventDefault();
-          alphaTabRef.current?.playPause();
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          handleSeek(Math.max(0, (currentTimeMs / 1000) - 5));
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          handleSeek(Math.min(durationSec, (currentTimeMs / 1000) + 5));
-          break;
-        case 'Minus':
-        case 'NumpadSubtract':
-          e.preventDefault();
-          handleSpeedChange(Math.max(0.25, speed - 0.1));
-          break;
-        case 'Equal':
-        case 'NumpadAdd':
-          e.preventDefault();
-          handleSpeedChange(Math.min(2.0, speed + 0.1));
-          break;
-        case 'BracketLeft':
-          e.preventDefault();
-          handleSetLoopA();
-          break;
-        case 'BracketRight':
-          e.preventDefault();
-          handleSetLoopB();
-          break;
-        case 'Backspace':
-          if (loopARef.current !== null || loopBRef.current !== null) {
-            e.preventDefault();
-            handleClearABLoop();
-          }
-          break;
-        case 'KeyF':
-          e.preventDefault();
-          setIsFlipped(prev => !prev);
-          break;
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentTimeMs, durationSec, speed]);
+  useEffect(() => {
+    isCountingInRef.current = isCountingIn;
+  }, [isCountingIn]);
 
-  // 60FPS High-Precision Interpolation loop during playback + A-B Loop auto-seek
+  useEffect(() => {
+    timelineRef.current = timeline;
+  }, [timeline]);
+
+  useEffect(() => {
+    tempoRef.current = tempo;
+  }, [tempo]);
+
+  useEffect(() => {
+    timeSignatureRef.current = timeSignature;
+  }, [timeSignature]);
+
+  useEffect(() => {
+    currentTimeMsRef.current = currentTimeMs;
+  }, [currentTimeMs]);
+
+  // 60FPS High-Precision Interpolation loop during playback + A-B Loop auto-seek + Metronome Sync
   useEffect(() => {
     if (!isPlaying) return;
     let animId: number;
@@ -135,11 +126,49 @@ export const App: React.FC = () => {
       ) {
         lastLoopSeekTimeRef.current = now;
         handleSeek(a);
+        lastScheduledBeatTimeRef.current = a * 1000 - 1;
         animId = requestAnimationFrame(loop);
         return;
       }
 
+      // Metronome Click Track: Speed-aware lookahead scheduling
+      if (isMetronomeOnRef.current) {
+        const lookaheadSongMs = 70 * speed;
+        const windowStart = interpolatedMs;
+        const windowEnd = interpolatedMs + lookaheadSongMs;
+        const lastScheduled = lastScheduledBeatTimeRef.current;
+
+        const metroBeats = timelineRef.current?.metronomeBeats;
+        if (metroBeats && metroBeats.length > 0) {
+          for (let i = 0; i < metroBeats.length; i++) {
+            const mb = metroBeats[i];
+            if (mb.timeMs >= windowStart && mb.timeMs < windowEnd && mb.timeMs > lastScheduled) {
+              const delayWallSec = Math.max(0, (mb.timeMs - interpolatedMs) / (1000 * speed));
+              const targetAudioTime = metronome.getCurrentTime() + delayWallSec;
+              metronome.playClick(targetAudioTime, mb.isStrong);
+              lastScheduledBeatTimeRef.current = mb.timeMs;
+            } else if (mb.timeMs >= windowEnd) {
+              break;
+            }
+          }
+        } else {
+          // Mathematical fallback based on tempo & timeSignature
+          const beatsPerBar = parseInt(timeSignatureRef.current.split('/')[0]) || 4;
+          const currentTempo = tempoRef.current || 120;
+          const beatDurationMs = 60000 / currentTempo;
+          const beatIdx = Math.floor(interpolatedMs / beatDurationMs);
+          const beatTimeMs = beatIdx * beatDurationMs;
+          if (beatTimeMs >= windowStart && beatTimeMs < windowEnd && beatTimeMs > lastScheduled) {
+            const delayWallSec = Math.max(0, (beatTimeMs - interpolatedMs) / (1000 * speed));
+            const targetAudioTime = metronome.getCurrentTime() + delayWallSec;
+            metronome.playClick(targetAudioTime, beatIdx % beatsPerBar === 0);
+            lastScheduledBeatTimeRef.current = beatTimeMs;
+          }
+        }
+      }
+
       setCurrentTimeMs(interpolatedMs);
+      currentTimeMsRef.current = interpolatedMs;
       animId = requestAnimationFrame(loop);
     };
 
@@ -209,10 +238,69 @@ export const App: React.FC = () => {
   const nextSection = beatState?.nextSection || currentSection;
   const currentBarIndex = beatState?.barIndex || 1;
 
+  // Metronome & Count-In Handlers
+  const cancelCountIn = useCallback(() => {
+    countInTimeoutsRef.current.forEach((id) => window.clearTimeout(id));
+    countInTimeoutsRef.current = [];
+    setIsCountingIn(false);
+    setCountInBeat(0);
+    isCountingInRef.current = false;
+  }, []);
+
+  const startCountIn = useCallback(() => {
+    cancelCountIn();
+    metronome.resume();
+    setIsCountingIn(true);
+    isCountingInRef.current = true;
+
+    const beatsPerBar = parseInt(timeSignatureRef.current.split('/')[0]) || 4;
+    const currentTempo = tempoRef.current || 120;
+    const beatDurationSec = (60 / currentTempo) / speed;
+    const beatDurationMs = beatDurationSec * 1000;
+
+    for (let b = 1; b <= beatsPerBar; b++) {
+      const timeoutId = window.setTimeout(() => {
+        if (!isCountingInRef.current) return;
+        setCountInBeat(b);
+        metronome.playClick(undefined, b === 1);
+      }, (b - 1) * beatDurationMs);
+      countInTimeoutsRef.current.push(timeoutId);
+    }
+
+    const finishTimeoutId = window.setTimeout(() => {
+      if (!isCountingInRef.current) return;
+      setIsCountingIn(false);
+      setCountInBeat(0);
+      isCountingInRef.current = false;
+      lastScheduledBeatTimeRef.current = currentTimeMsRef.current - 1;
+      alphaTabRef.current?.playPause();
+    }, beatsPerBar * beatDurationMs);
+
+    countInTimeoutsRef.current.push(finishTimeoutId);
+  }, [cancelCountIn, speed]);
+
+  const handleToggleMetronome = useCallback(() => {
+    setIsMetronomeOn((prev) => {
+      const next = !prev;
+      isMetronomeOnRef.current = next;
+      if (next) {
+        metronome.resume();
+        lastScheduledBeatTimeRef.current = currentTimeMsRef.current - 1;
+      }
+      return next;
+    });
+  }, []);
+
+  const handleMetronomeVolumeChange = useCallback((vol: number) => {
+    setMetronomeVolume(vol);
+    metronome.setVolume(vol);
+  }, []);
+
   // Handlers
   const handleSelectPreset = (presetId: string) => {
     const preset = PRESET_SONGS.find((p) => p.id === presetId);
     if (!preset) return;
+    cancelCountIn();
     handleClearABLoop();
     setSelectedPresetId(presetId);
     setSongTitle(preset.title);
@@ -220,46 +308,71 @@ export const App: React.FC = () => {
     setTempo(preset.tempo);
     setTimeline(null);
     setCurrentTimeMs(0);
+    lastScheduledBeatTimeRef.current = -1;
     lastSyncRef.current = { audioMs: 0, wallTime: performance.now() };
     alphaTabRef.current?.loadTex(preset.tex);
   };
 
   const handleFileUpload = (file: File) => {
+    cancelCountIn();
     handleClearABLoop();
     setSongTitle(file.name.replace(/\.[^/.]+$/, ''));
     setSongArtist('User Tab Import');
     setTimeline(null);
     setCurrentTimeMs(0);
+    lastScheduledBeatTimeRef.current = -1;
     lastSyncRef.current = { audioMs: 0, wallTime: performance.now() };
     alphaTabRef.current?.loadFile(file);
   };
 
   const handleSelectTrack = (trackIndex: number) => {
+    cancelCountIn();
     handleClearABLoop();
     setActiveTrackIndex(trackIndex);
     setCurrentTimeMs(0);
+    lastScheduledBeatTimeRef.current = -1;
     lastSyncRef.current = { audioMs: 0, wallTime: performance.now() };
     alphaTabRef.current?.changeTrack(trackIndex);
   };
 
-  const handlePlayPause = () => {
-    alphaTabRef.current?.playPause();
-  };
+  const handlePlayPause = useCallback(() => {
+    if (isCountingInRef.current) {
+      cancelCountIn();
+      return;
+    }
+
+    if (isPlaying) {
+      alphaTabRef.current?.playPause();
+      return;
+    }
+
+    if (isCountInEnabled) {
+      startCountIn();
+    } else {
+      metronome.resume();
+      lastScheduledBeatTimeRef.current = currentTimeMsRef.current - 1;
+      alphaTabRef.current?.playPause();
+    }
+  }, [isPlaying, isCountInEnabled, startCountIn, cancelCountIn]);
 
   const handleStop = () => {
+    cancelCountIn();
     alphaTabRef.current?.stop();
     setCurrentTimeMs(0);
     lastSyncRef.current = { audioMs: 0, wallTime: performance.now() };
+    lastScheduledBeatTimeRef.current = -1;
     setActiveNotes([]);
     setActiveChord(null);
     setActiveTechnique(null);
   };
 
   const handleSeek = (seconds: number) => {
+    cancelCountIn();
     alphaTabRef.current?.seek(seconds);
     const ms = seconds * 1000;
     setCurrentTimeMs(ms);
     lastSyncRef.current = { audioMs: ms, wallTime: performance.now() };
+    lastScheduledBeatTimeRef.current = ms - 1;
   };
 
   const handleSpeedChange = (newSpeed: number) => {
@@ -408,6 +521,62 @@ export const App: React.FC = () => {
     loopBRef.current = null;
   };
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          handlePlayPause();
+          break;
+        case 'KeyM':
+          e.preventDefault();
+          handleToggleMetronome();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          handleSeek(Math.max(0, (currentTimeMsRef.current / 1000) - 5));
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          handleSeek(Math.min(durationSec, (currentTimeMsRef.current / 1000) + 5));
+          break;
+        case 'Minus':
+        case 'NumpadSubtract':
+          e.preventDefault();
+          handleSpeedChange(Math.max(0.25, speed - 0.1));
+          break;
+        case 'Equal':
+        case 'NumpadAdd':
+          e.preventDefault();
+          handleSpeedChange(Math.min(2.0, speed + 0.1));
+          break;
+        case 'BracketLeft':
+          e.preventDefault();
+          handleSetLoopA();
+          break;
+        case 'BracketRight':
+          e.preventDefault();
+          handleSetLoopB();
+          break;
+        case 'Backspace':
+          if (loopARef.current !== null || loopBRef.current !== null) {
+            e.preventDefault();
+            handleClearABLoop();
+          }
+          break;
+        case 'KeyF':
+          e.preventDefault();
+          setIsFlipped((prev) => !prev);
+          break;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handlePlayPause, handleToggleMetronome, durationSec, speed]);
+
   return (
     <div
       style={{
@@ -425,6 +594,7 @@ export const App: React.FC = () => {
         songArtist={songArtist}
         activeTrackName={activeTrack?.name || 'Lead Guitar'}
         tempo={tempo}
+        timeSignature={timeSignature}
         tuning={activeTuning}
         selectedPresetId={selectedPresetId}
         onSelectPreset={handleSelectPreset}
@@ -449,6 +619,7 @@ export const App: React.FC = () => {
           width: '100%',
           overflow: 'hidden',
           backgroundColor: '#120e0e',
+          position: 'relative',
         }}
       >
         {/* Upper Panel: Horizontal Scrolling Highway (Look-Ahead Horizon 3.0s) */}
@@ -478,6 +649,100 @@ export const App: React.FC = () => {
             isFlipped={isFlipped}
           />
         </div>
+
+        {/* Count-In Visual HUD Overlay */}
+        {isCountingIn && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(18, 14, 14, 0.75)',
+              backdropFilter: 'blur(5px)',
+              zIndex: 50,
+              pointerEvents: 'none',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '24px 48px',
+                borderRadius: '12px',
+                background: 'linear-gradient(180deg, rgba(35, 27, 27, 0.95) 0%, rgba(20, 16, 16, 0.98) 100%)',
+                border: '1.5px solid #ffb86c',
+                boxShadow: '0 0 35px rgba(255, 184, 108, 0.35)',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-mono)',
+                  color: '#ffb86c',
+                  letterSpacing: '2.5px',
+                  textTransform: 'uppercase',
+                }}
+              >
+                COUNT-IN · SIAPKAN PETIKAN
+              </div>
+
+              {/* Big Pulsing Beat Number */}
+              <div
+                key={countInBeat}
+                style={{
+                  fontSize: '84px',
+                  fontWeight: 900,
+                  fontFamily: 'var(--font-mono)',
+                  color: countInBeat === 1 ? '#ffb86c' : '#ffffff',
+                  lineHeight: 1,
+                  textShadow: countInBeat === 1
+                    ? '0 0 30px rgba(255, 184, 108, 0.9)'
+                    : '0 0 20px rgba(255, 255, 255, 0.6)',
+                }}
+              >
+                {countInBeat > 0 ? countInBeat : '...'}
+              </div>
+
+              {/* Beat Dots Indicator */}
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                {Array.from({ length: parseInt(timeSignature.split('/')[0]) || 4 }).map((_, idx) => {
+                  const isActive = idx < countInBeat;
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        backgroundColor: isActive ? '#ffb86c' : '#3d3232',
+                        boxShadow: isActive ? '0 0 10px #ffb86c' : 'none',
+                        transform: isActive ? 'scale(1.2)' : 'scale(1)',
+                        transition: 'all 0.12s ease',
+                      }}
+                    />
+                  );
+                })}
+              </div>
+
+              <div
+                style={{
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono)',
+                  color: '#a89d9d',
+                  marginTop: '2px',
+                }}
+              >
+                {tempo} BPM · Birama {timeSignature}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 4. AlphaTab 2D Sheet (Collapsible Notation Partitur) */}
@@ -489,13 +754,15 @@ export const App: React.FC = () => {
           setTracks(loadedTracks);
           setActiveTrackIndex(initialIdx);
         }}
-        onSongInfoLoaded={(title, artist, songTempo) => {
+        onSongInfoLoaded={(title, artist, songTempo, songTimeSig) => {
           setSongTitle(title);
           setSongArtist(artist);
           setTempo(songTempo);
+          if (songTimeSig) setTimeSignature(songTimeSig);
         }}
         onTimelineLoaded={(extractedTimeline) => {
           setTimeline(extractedTimeline);
+          if (extractedTimeline.timeSignature) setTimeSignature(extractedTimeline.timeSignature);
         }}
         onActiveNotesChange={(notes, chord) => {
           setActiveNotes(notes);
@@ -524,6 +791,7 @@ export const App: React.FC = () => {
           nextSection={nextSection}
           barIndex={currentBarIndex}
           tempo={tempo}
+          timeSignature={timeSignature}
           isPlaying={isPlaying}
           onPlayPause={handlePlayPause}
           onStop={handleStop}
@@ -546,7 +814,15 @@ export const App: React.FC = () => {
           onSetLoopB={handleSetLoopB}
           onClearABLoop={handleClearABLoop}
           isFlipped={isFlipped}
-          onToggleFlip={() => setIsFlipped(prev => !prev)}
+          onToggleFlip={() => setIsFlipped((prev) => !prev)}
+          isMetronomeOn={isMetronomeOn}
+          onToggleMetronome={handleToggleMetronome}
+          metronomeVolume={metronomeVolume}
+          onMetronomeVolumeChange={handleMetronomeVolumeChange}
+          isCountInEnabled={isCountInEnabled}
+          onToggleCountIn={() => setIsCountInEnabled((prev) => !prev)}
+          isCountingIn={isCountingIn}
+          countInBeat={countInBeat}
         />
       </div>
     </div>

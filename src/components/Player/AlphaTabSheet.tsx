@@ -23,7 +23,7 @@ interface AlphaTabSheetProps {
   initialTex?: string;
   activeTrackIndex: number;
   onTracksLoaded: (tracks: TrackInfo[], activeIndex: number) => void;
-  onSongInfoLoaded: (title: string, artist: string, tempo: number) => void;
+  onSongInfoLoaded: (title: string, artist: string, tempo: number, timeSignature?: string) => void;
   onActiveNotesChange: (notes: TabNote[], chord: ActiveChord | null) => void;
   onTechniqueChange: (technique: ActiveTechnique | null) => void;
   onPlayerPositionChange: (currentSeconds: number, totalSeconds: number) => void;
@@ -188,7 +188,10 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
       const songTitle = score.title || 'Untitled Tab';
       const songArtist = score.artist || 'Unknown Artist';
       const tempo = score.tempo || 120;
-      callbacksRef.current.onSongInfoLoaded(songTitle, songArtist, tempo);
+      const timeSignature = score.masterBars && score.masterBars.length > 0
+        ? `${score.masterBars[0].timeSignatureNumerator || 4}/${score.masterBars[0].timeSignatureDenominator || 4}`
+        : '4/4';
+      callbacksRef.current.onSongInfoLoaded(songTitle, songArtist, tempo, timeSignature);
 
       // Extract tracks
       const tracks: TrackInfo[] = score.tracks.map((t) => {
