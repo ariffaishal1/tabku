@@ -1,3 +1,5 @@
+import { generateBackingTrackTex } from './scaleTheory';
+
 export interface PresetSong {
   id: string;
   title: string;
@@ -8,7 +10,18 @@ export interface PresetSong {
   tex: string;
 }
 
+const defaultScaleBacking = generateBackingTrackTex(9, 'minor_pentatonic', 90);
+
 export const PRESET_SONGS: PresetSong[] = [
+  {
+    id: 'scale-practice-empty',
+    title: 'Tab Kosong · Latihan Scale',
+    artist: 'TabKu Practice Studio',
+    tempo: 90,
+    genre: 'Scale Lab / Jam',
+    description: 'Canvas bersih untuk latihan tangga nada (scales), senam jari, dan improvisasi solo di seluruh fretboard 2D.',
+    tex: defaultScaleBacking.tex,
+  },
   {
     id: 'rock-anthem-solo',
     title: 'Neon Horizon (Solo & Rhythm)',

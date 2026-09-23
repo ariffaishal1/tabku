@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import type { SongTimeline, ExtractedNote } from '../../services/timelineExtractor';
 import { getUpcomingHighwayBeats } from '../../services/timelineExtractor';
 import { ChordDiagram } from '../Telemetry/ChordDiagram';
+import { checkNoteInScale, ROOT_NOTES, SCALE_DEFINITIONS } from '../../services/scaleTheory';
 
 interface StringFlowHighwayProps {
   timeline: SongTimeline | null;
@@ -14,6 +15,14 @@ interface StringFlowHighwayProps {
   loopAMs?: number;
   loopBMs?: number;
   isFlipped?: boolean;
+
+  // Scale Mode props (FR-NEXT-05)
+  isScaleMode?: boolean;
+  scaleRoot?: number;
+  scaleId?: string;
+  scaleDisplayMode?: 'degrees' | 'notes';
+  tuning?: number[];
+  backingProgressionName?: string;
 }
 
 export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
@@ -27,6 +36,12 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
   loopAMs,
   loopBMs,
   isFlipped = false,
+  isScaleMode = false,
+  scaleRoot = 9,
+  scaleId = 'minor_pentatonic',
+  scaleDisplayMode = 'degrees',
+  tuning = [64, 59, 55, 50, 45, 40],
+  backingProgressionName,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -340,8 +355,174 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
       ctx.stroke();
       ctx.restore();
 
-      // 6. Upcoming Highway Notes & Technique Visuals
-      if (timeline && timeline.beats.length > 0) {
+      // 6. Highway Scale Roadmap (Static Mode) OR Upcoming Scrolling Notes (Normal Mode)
+      if (isScaleMode) {
+        // --- STATIC HIGHWAY SCALE ROADMAP ---
+        const startHighwayX = STRIKE_X + 20;
+        const availableW = Math.max(100, width - startHighwayX - 30);
+        const TOTAL_FRETS = 24;
+        const fretColW = availableW / (TOTAL_FRETS + 1);
+
+        // A. Draw Top Fret Column Numbers on Highway Ruler
+        for (let f = 0; f <= TOTAL_FRETS; f++) {
+          const posX = startHighwayX + f * fretColW + fretColW / 2;
+          const isMarkerFret = [0, 3, 5, 7, 9, 12, 15, 17, 19, 21, 24].includes(f);
+
+          ctx.save();
+          // Subtle vertical grid line
+          ctx.beginPath();
+          ctx.moveTo(posX, 36);
+          ctx.lineTo(posX, height - bottomPadding + 6);
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = isMarkerFret ? 'rgba(70, 56, 56, 0.4)' : 'rgba(38, 30, 30, 0.25)';
+          if (!isMarkerFret) ctx.setLineDash([2, 4]);
+          ctx.stroke();
+
+          // Fret label pill at top
+          if (isMarkerFret) {
+            ctx.fillStyle = '#1c1616';
+            ctx.strokeStyle = '#382c2c';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(posX - 13, 13, 26, 15, 3);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = f === 0 ? '#FF7A65' : '#a89d9d';
+            ctx.font = '800 8.5px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(f === 0 ? 'NUT' : f < 10 ? `0${f}` : `${f}`, posX, 20.5);
+          }
+          ctx.restore();
+        }
+
+        // B. Draw Static Scale Nodes along each string
+        for (let s = 1; s <= numStrings; s++) {
+          const noteY = getStringY(s);
+          const baseStringPitch = tuning[s - 1] ?? [64, 59, 55, 50, 45, 40][s - 1];
+
+          for (let f = 0; f <= TOTAL_FRETS; f++) {
+            const posX = startHighwayX + f * fretColW + fretColW / 2;
+            const midi = baseStringPitch + f;
+            const match = checkNoteInScale(midi, scaleRoot, scaleId);
+            if (!match) continue;
+
+            const isActivelyPlayed = activeNotes.some((an) => an.string === s && an.fret === f);
+
+            const badgeW = match.isRoot ? 26 : 22;
+            const badgeH = 20;
+            const badgeX = posX - badgeW / 2;
+            const badgeY = noteY - badgeH / 2;
+
+            ctx.save();
+            if (isActivelyPlayed) {
+              // Active played hit state
+              ctx.fillStyle = '#FF7A65';
+              ctx.shadowColor = '#FF7A65';
+              ctx.shadowBlur = 16;
+              ctx.beginPath();
+              ctx.roundRect(badgeX - 2, badgeY - 2, badgeW + 4, badgeH + 4, 5);
+              ctx.fill();
+
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 1.5;
+              ctx.stroke();
+
+              ctx.fillStyle = '#120e0e';
+              ctx.font = '900 11px "JetBrains Mono", monospace';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(scaleDisplayMode === 'notes' ? match.noteName : match.degree, posX, noteY);
+            } else if (match.isRoot) {
+              // Root Note (Coral Red Glow)
+              ctx.fillStyle = 'rgba(255, 122, 101, 0.9)';
+              ctx.shadowColor = '#FF7A65';
+              ctx.shadowBlur = 10;
+              ctx.beginPath();
+              ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+              ctx.fill();
+
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 1.5;
+              ctx.stroke();
+
+              ctx.fillStyle = '#120e0e';
+              ctx.font = '900 10.5px "JetBrains Mono", monospace';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(scaleDisplayMode === 'notes' ? match.noteName : 'R', posX, noteY);
+            } else if (match.isBlueNote) {
+              // Blue Note (Magenta Glow)
+              ctx.fillStyle = 'rgba(255, 121, 198, 0.9)';
+              ctx.shadowColor = '#ff79c6';
+              ctx.shadowBlur = 8;
+              ctx.beginPath();
+              ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+              ctx.fill();
+
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 1.2;
+              ctx.stroke();
+
+              ctx.fillStyle = '#120e0e';
+              ctx.font = '900 10px "JetBrains Mono", monospace';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(scaleDisplayMode === 'notes' ? match.noteName : '♭5', posX, noteY);
+            } else {
+              // Scale Note (Warm Amber Translucent)
+              ctx.fillStyle = 'rgba(32, 24, 24, 0.88)';
+              ctx.strokeStyle = 'rgba(255, 184, 108, 0.7)';
+              ctx.lineWidth = 1.2;
+              ctx.beginPath();
+              ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+              ctx.fill();
+              ctx.stroke();
+
+              ctx.fillStyle = '#ffb86c';
+              ctx.font = '700 9.5px "JetBrains Mono", monospace';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(scaleDisplayMode === 'notes' ? match.noteName : match.degree, posX, noteY);
+            }
+            ctx.restore();
+          }
+        }
+
+        // C. Center Highway HUD Banner (Cyber Studio Glass)
+        const currentScaleDef = SCALE_DEFINITIONS.find((sd) => sd.id === scaleId) || SCALE_DEFINITIONS[0];
+        const currentRootObj = ROOT_NOTES.find((rn) => rn.pitchClass === scaleRoot) || ROOT_NOTES[9];
+
+        ctx.save();
+        const bannerText = backingProgressionName
+          ? `SCALE LAB · ${currentRootObj.name.toUpperCase()} ${currentScaleDef.name.toUpperCase()} · JAM: ${backingProgressionName.toUpperCase()}`
+          : `SCALE LAB · ${currentRootObj.name.toUpperCase()} ${currentScaleDef.name.toUpperCase()} (STATIC ROADMAP)`;
+        ctx.font = '800 10px "JetBrains Mono", monospace';
+        const textW = ctx.measureText(bannerText).width;
+        const bannerW = Math.min(Math.max(380, textW + 28), availableW - 20);
+        const bannerH = 26;
+        const bannerX = startHighwayX + (availableW - bannerW) / 2;
+        const bannerY = 8;
+
+        ctx.fillStyle = 'rgba(22, 17, 17, 0.88)';
+        ctx.strokeStyle = '#3d3030';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#FF7A65';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(
+          bannerText,
+          bannerX + bannerW / 2,
+          bannerY + bannerH / 2
+        );
+        ctx.restore();
+      } else if (timeline && timeline.beats.length > 0) {
         const upcoming = getUpcomingHighwayBeats(timeline, currentTimeMs, 3000);
 
         upcoming.forEach(({ beat, progress, timeOffsetMs }) => {

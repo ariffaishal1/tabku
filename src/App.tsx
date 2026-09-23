@@ -13,6 +13,7 @@ import {
 } from './services/timelineExtractor';
 import { metronome } from './services/metronome';
 import type { TabNote, TrackInfo, ActiveChord, ActiveTechnique } from './types/guitar';
+import { generateBackingTrackTex, type ScaleDisplayMode } from './services/scaleTheory';
 
 export const App: React.FC = () => {
   const alphaTabRef = useRef<AlphaTabSheetRef>(null);
@@ -65,6 +66,15 @@ export const App: React.FC = () => {
 
   // Transpose / Virtual Pitch Shifter (FR-NEXT-04: -12 to +12 semitones)
   const [transpose, setTranspose] = useState<number>(0);
+
+  // Scale Practice Lab State (FR-NEXT-05)
+  const [isScaleMode, setIsScaleMode] = useState<boolean>(true);
+  const [scaleRoot, setScaleRoot] = useState<number>(9); // Default A (pitch class 9)
+  const [scaleId, setScaleId] = useState<string>('minor_pentatonic');
+  const [scaleDisplayMode, setScaleDisplayMode] = useState<ScaleDisplayMode>('degrees');
+  const [backingProgressionName, setBackingProgressionName] = useState<string>(
+    'A Minor Rock/Ballad Groove'
+  );
 
   // Real-time Song Timeline (Look-ahead highway & Fretboard data)
   const [timeline, setTimeline] = useState<SongTimeline | null>(null);
@@ -305,6 +315,34 @@ export const App: React.FC = () => {
     alphaTabRef.current?.setTranspose(clamped);
   }, []);
 
+  // Scale Lab Handlers (FR-NEXT-05)
+  const handleScaleConfigChange = useCallback((newRoot: number, newScaleId: string) => {
+    setScaleRoot(newRoot);
+    setScaleId(newScaleId);
+
+    const currentTempo = tempoRef.current || 90;
+    const backing = generateBackingTrackTex(newRoot, newScaleId, currentTempo);
+    setBackingProgressionName(backing.progressionName);
+
+    if (selectedPresetId === 'scale-practice-empty' || isScaleMode) {
+      cancelCountIn();
+      handleClearABLoop();
+      setTimeline(null);
+      setCurrentTimeMs(0);
+      lastScheduledBeatTimeRef.current = -1;
+      lastSyncRef.current = { audioMs: 0, wallTime: performance.now() };
+      alphaTabRef.current?.loadTex(backing.tex);
+    }
+  }, [selectedPresetId, isScaleMode, cancelCountIn]);
+
+  const handleToggleScaleMode = useCallback(() => {
+    setIsScaleMode((prev) => !prev);
+  }, []);
+
+  const handleToggleDisplayMode = useCallback(() => {
+    setScaleDisplayMode((prev) => (prev === 'degrees' ? 'notes' : 'degrees'));
+  }, []);
+
   // Handlers
   const handleSelectPreset = (presetId: string) => {
     const preset = PRESET_SONGS.find((p) => p.id === presetId);
@@ -320,7 +358,16 @@ export const App: React.FC = () => {
     setCurrentTimeMs(0);
     lastScheduledBeatTimeRef.current = -1;
     lastSyncRef.current = { audioMs: 0, wallTime: performance.now() };
-    alphaTabRef.current?.loadTex(preset.tex);
+
+    if (presetId === 'scale-practice-empty') {
+      setIsScaleMode(true);
+      const backing = generateBackingTrackTex(scaleRoot, scaleId, preset.tempo);
+      setBackingProgressionName(backing.progressionName);
+      alphaTabRef.current?.loadTex(backing.tex);
+    } else {
+      setIsScaleMode(false);
+      alphaTabRef.current?.loadTex(preset.tex);
+    }
   };
 
   const handleFileUpload = (file: File) => {
@@ -582,6 +629,10 @@ export const App: React.FC = () => {
           e.preventDefault();
           setIsFlipped((prev) => !prev);
           break;
+        case 'KeyS':
+          e.preventDefault();
+          handleToggleScaleMode();
+          break;
         case 'ArrowUp':
           if (e.shiftKey) {
             e.preventDefault();
@@ -598,7 +649,7 @@ export const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePlayPause, handleToggleMetronome, durationSec, speed, handleTransposeChange, transpose]);
+  }, [handlePlayPause, handleToggleMetronome, durationSec, speed, handleTransposeChange, transpose, handleToggleScaleMode]);
 
   return (
     <div
@@ -659,6 +710,12 @@ export const App: React.FC = () => {
             loopAMs={loopA !== null ? loopA * 1000 : undefined}
             loopBMs={loopB !== null ? loopB * 1000 : undefined}
             isFlipped={isFlipped}
+            isScaleMode={isScaleMode}
+            scaleRoot={scaleRoot}
+            scaleId={scaleId}
+            scaleDisplayMode={scaleDisplayMode}
+            tuning={activeTuning}
+            backingProgressionName={backingProgressionName}
           />
         </div>
 
@@ -669,8 +726,17 @@ export const App: React.FC = () => {
             nextNotes={nextAttackNotes}
             activeTechniqueTitle={activeTechnique?.title}
             tuningNames={timeline?.tuningNames || activeTuningNames}
+            tuning={activeTuning}
             isPlaying={isPlaying}
             isFlipped={isFlipped}
+            isScaleMode={isScaleMode}
+            scaleRoot={scaleRoot}
+            scaleId={scaleId}
+            scaleDisplayMode={scaleDisplayMode}
+            onScaleChange={handleScaleConfigChange}
+            onToggleScaleMode={handleToggleScaleMode}
+            onToggleDisplayMode={handleToggleDisplayMode}
+            backingProgressionName={backingProgressionName}
           />
         </div>
 

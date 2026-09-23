@@ -1,13 +1,30 @@
 import React, { useRef, useEffect } from 'react';
 import type { ExtractedNote } from '../../services/timelineExtractor';
+import {
+  ROOT_NOTES,
+  SCALE_DEFINITIONS,
+  checkNoteInScale,
+  type ScaleDisplayMode,
+} from '../../services/scaleTheory';
 
 interface FlatFretboard2DProps {
   activeNotes: ExtractedNote[];
   nextNotes: ExtractedNote[];
   activeTechniqueTitle?: string;
   tuningNames: string[];
+  tuning?: number[];
   isPlaying?: boolean;
   isFlipped?: boolean;
+
+  // Scale Lab Overlay Props (FR-NEXT-05)
+  isScaleMode?: boolean;
+  scaleRoot?: number;
+  scaleId?: string;
+  scaleDisplayMode?: ScaleDisplayMode;
+  onScaleChange?: (root: number, scaleId: string) => void;
+  onToggleScaleMode?: () => void;
+  onToggleDisplayMode?: () => void;
+  backingProgressionName?: string;
 }
 
 const INLAY_SINGLE_FRETS = [3, 5, 7, 9, 15, 17, 19, 21];
@@ -24,8 +41,17 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
   nextNotes,
   activeTechniqueTitle,
   tuningNames,
+  tuning = [64, 59, 55, 50, 45, 40],
   isPlaying = false,
   isFlipped = false,
+  isScaleMode = false,
+  scaleRoot = 9,
+  scaleId = 'minor_pentatonic',
+  scaleDisplayMode = 'degrees',
+  onScaleChange,
+  onToggleScaleMode,
+  onToggleDisplayMode,
+  backingProgressionName,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -35,14 +61,25 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
     (a, b) => a - b
   );
 
+  const currentScale = SCALE_DEFINITIONS.find((s) => s.id === scaleId) || SCALE_DEFINITIONS[0];
+  const currentRoot = ROOT_NOTES.find((r) => r.pitchClass === scaleRoot) || ROOT_NOTES[9];
+
   let activeFretText = '--';
   let positionText = 'IDLE';
   let notesSummaryText = 'NO ACTIVE NOTES';
 
   if (activeNotes.length === 0) {
-    activeFretText = '--';
-    positionText = 'IDLE';
-    notesSummaryText = 'NO ACTIVE NOTES';
+    if (isScaleMode) {
+      activeFretText = currentRoot.name;
+      positionText = currentScale.name.toUpperCase();
+      notesSummaryText = backingProgressionName
+        ? `JAM · ${backingProgressionName.toUpperCase()}`
+        : `${currentScale.description.toUpperCase()}`;
+    } else {
+      activeFretText = '--';
+      positionText = 'IDLE';
+      notesSummaryText = 'NO ACTIVE NOTES';
+    }
   } else if (frettedOnly.length === 0) {
     // All sounding notes are open strings (fret 0)
     activeFretText = 'OPEN';
@@ -96,7 +133,11 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
     ? 'PALM MUTE'
     : activeNotes.length > 1
     ? 'CHORD SHAPE'
-    : 'STANDARD STROKE';
+    : activeNotes.length === 1
+    ? 'STANDARD STROKE'
+    : isScaleMode
+    ? 'SCALE PRACTICE LAB'
+    : 'IDLE';
 
   // Canvas drawing loop
   useEffect(() => {
@@ -238,6 +279,80 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       ctx.lineWidth = isCurrentActive ? stringThickness + 1.2 : stringThickness;
       ctx.strokeStyle = isCurrentActive ? '#ff7a65aa' : '#5e5252';
       ctx.stroke();
+    }
+
+    // 4.5 Draw Scale Ghost Dots Roadmap Overlay (FR-NEXT-05)
+    if (isScaleMode) {
+      for (let s = 1; s <= numStrings; s++) {
+        const y = getStringY(s);
+        const basePitch = (tuning && tuning[s - 1]) ?? [64, 59, 55, 50, 45, 40][s - 1] ?? (64 - (s - 1) * 5);
+
+        for (let f = 0; f <= TOTAL_FRETS; f++) {
+          const midiPitch = basePitch + f;
+          const match = checkNoteInScale(midiPitch, scaleRoot, scaleId);
+          if (!match) continue;
+
+          // Don't draw ghost dot if this exact note is currently active (activeNotes draws on top)
+          const isSoundingNow = activeNotes.some((an) => an.string === s && an.fret === f);
+          if (isSoundingNow) continue;
+
+          const fretCenterX = leftMargin + f * fretWidth + fretWidth / 2;
+
+          ctx.save();
+          if (match.isRoot) {
+            // Coral Red for Root Note
+            const radius = 8.5;
+            ctx.shadowColor = '#FF7A65';
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = '#FF7A65';
+            ctx.beginPath();
+            ctx.arc(fretCenterX, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Root label inside
+            ctx.fillStyle = '#120e0e';
+            ctx.font = '900 8.5px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const label = scaleDisplayMode === 'degrees' ? match.degree : match.noteName;
+            ctx.fillText(label, fretCenterX, y);
+          } else if (match.isBlueNote) {
+            // Neon Magenta for Blue Note (♭5)
+            const radius = 8;
+            ctx.shadowColor = '#ff79c6';
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = '#ff79c6';
+            ctx.beginPath();
+            ctx.arc(fretCenterX, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#120e0e';
+            ctx.font = '900 8px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const label = scaleDisplayMode === 'degrees' ? match.degree : match.noteName;
+            ctx.fillText(label, fretCenterX, y);
+          } else {
+            // Subtle translucent tone pill
+            const radius = 7.5;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(fretCenterX, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#d0c4c4';
+            ctx.font = '700 7.5px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const label = scaleDisplayMode === 'degrees' ? match.degree : match.noteName;
+            ctx.fillText(label, fretCenterX, y);
+          }
+          ctx.restore();
+        }
+      }
     }
 
     // 5. Draw NEXT Attack Notes (Corner / Diamond brackets ◇)
@@ -703,7 +818,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
   return () => {
     cancelAnimationFrame(animId);
   };
-}, [activeNotes, nextNotes, tuningNames, isPlaying, isFlipped]);
+}, [activeNotes, nextNotes, tuningNames, tuning, isPlaying, isFlipped, isScaleMode, scaleRoot, scaleId, scaleDisplayMode]);
 
   return (
     <div
@@ -752,11 +867,12 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
                 width: '6px',
                 height: '6px',
                 borderRadius: '50%',
-                backgroundColor: '#FF7A65',
+                backgroundColor: isScaleMode ? '#8be9fd' : '#FF7A65',
                 display: 'inline-block',
+                boxShadow: isScaleMode ? '0 0 6px #8be9fd' : 'none',
               }}
             />
-            ACTIVE FRETS
+            {isScaleMode && activeNotes.length === 0 ? 'SCALE ROADMAP' : 'ACTIVE FRETS'}
           </div>
 
           <div
@@ -887,6 +1003,156 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
               display: 'block',
             }}
           />
+
+          {/* Floating Scale Lab Overlay Toolbar (FR-NEXT-05) */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '8px',
+              right: '16px',
+              zIndex: 10,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              backgroundColor: 'rgba(18, 14, 14, 0.90)',
+              backdropFilter: 'blur(8px)',
+              border: isScaleMode ? '1px solid #FF7A65' : '1px solid #362c2c',
+              borderRadius: '6px',
+              padding: '4px 10px',
+              boxShadow: isScaleMode ? '0 0 14px rgba(255, 122, 101, 0.2)' : 'none',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            {/* Scale Lab Toggle Button */}
+            <button
+              onClick={onToggleScaleMode}
+              title="Toggle Fretboard Scale Roadmap Overlay (Key: S)"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: isScaleMode ? '#FF7A65' : '#231c1c',
+                color: isScaleMode ? '#120e0e' : '#a89d9d',
+                border: isScaleMode ? '1px solid #FF7A65' : '1px solid #362c2c',
+                borderRadius: '4px',
+                padding: '3px 8px',
+                fontSize: '10px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>🗺️</span>
+              <span>SCALE LAB</span>
+            </button>
+
+            {isScaleMode && (
+              <>
+                {/* Root Note Selector */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ fontSize: '9px', color: '#7a7070', fontWeight: 700 }}>ROOT</span>
+                  <select
+                    value={scaleRoot}
+                    onChange={(e) => onScaleChange?.(parseInt(e.target.value, 10), scaleId)}
+                    style={{
+                      backgroundColor: '#181414',
+                      color: '#FF7A65',
+                      border: '1px solid #362c2c',
+                      borderRadius: '4px',
+                      padding: '2px 6px',
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      outline: 'none',
+                    }}
+                  >
+                    {ROOT_NOTES.map((r) => (
+                      <option key={r.pitchClass} value={r.pitchClass}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Scale Type Selector */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ fontSize: '9px', color: '#7a7070', fontWeight: 700 }}>SCALE</span>
+                  <select
+                    value={scaleId}
+                    onChange={(e) => onScaleChange?.(scaleRoot, e.target.value)}
+                    style={{
+                      backgroundColor: '#181414',
+                      color: '#f0ecec',
+                      border: '1px solid #362c2c',
+                      borderRadius: '4px',
+                      padding: '2px 6px',
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      outline: 'none',
+                    }}
+                  >
+                    {SCALE_DEFINITIONS.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Degrees / Note Names Toggle */}
+                <button
+                  onClick={onToggleDisplayMode}
+                  title="Toggle between Scale Degrees (R, ♭3, 5) and Pitch Note Names (A, C, D...)"
+                  style={{
+                    backgroundColor: '#201a1a',
+                    color: scaleDisplayMode === 'degrees' ? '#f1fa8c' : '#8be9fd',
+                    border: '1px solid #362c2c',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '9.5px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {scaleDisplayMode === 'degrees' ? 'DEG (R, ♭3, 5)' : 'NOTE (A, C, D)'}
+                </button>
+
+                {/* Dynamic Backing Track Info Pill */}
+                {backingProgressionName && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      backgroundColor: 'rgba(255, 122, 101, 0.1)',
+                      border: '1px solid rgba(255, 122, 101, 0.3)',
+                      borderRadius: '4px',
+                      padding: '3px 8px',
+                      fontSize: '9px',
+                      color: '#ffb86c',
+                      fontWeight: 700,
+                    }}
+                    title={`Active Dynamic Backing Track: ${backingProgressionName}`}
+                  >
+                    <span>🎵</span>
+                    <span
+                      style={{
+                        maxWidth: '160px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {backingProgressionName}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Legend Bar at Bottom */}
@@ -907,6 +1173,50 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            {isScaleMode && (
+              <>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: '8px',
+                      height: '8px',
+                      backgroundColor: '#FF7A65',
+                      borderRadius: '50%',
+                      boxShadow: '0 0 6px #FF7A65',
+                    }}
+                  />
+                  <span style={{ color: '#FF7A65', fontWeight: 800 }}>ROOT</span>
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: '8px',
+                      height: '8px',
+                      backgroundColor: '#ff79c6',
+                      borderRadius: '50%',
+                      boxShadow: '0 0 6px #ff79c6',
+                    }}
+                  />
+                  <span style={{ color: '#ff79c6', fontWeight: 800 }}>BLUE NOTE (♭5)</span>
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: '8px',
+                      height: '8px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                      borderRadius: '50%',
+                    }}
+                  />
+                  <span style={{ color: '#d0c4c4', fontWeight: 700 }}>SCALE TONE</span>
+                </span>
+                <span style={{ color: '#362c2c' }}>|</span>
+              </>
+            )}
             <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <span
                 style={{
@@ -954,7 +1264,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
           </div>
 
           <div style={{ color: '#685e5e', letterSpacing: '0.5px' }}>
-            FULL FRETBOARD / 00-24
+            {isScaleMode ? 'SCALE ROADMAP · 24 FRETS' : 'FULL FRETBOARD / 00-24'}
           </div>
         </div>
       </div>
