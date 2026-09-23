@@ -52,6 +52,10 @@ interface TelemetryBarProps {
   onToggleCountIn?: () => void;
   isCountingIn?: boolean;
   countInBeat?: number;
+
+  // Transpose / Virtual Pitch Shifter (FR-NEXT-04)
+  transpose?: number;
+  onTransposeChange?: (semitones: number) => void;
 }
 
 export const TelemetryBar: React.FC<TelemetryBarProps> = ({
@@ -91,6 +95,8 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
   onToggleCountIn,
   isCountingIn = false,
   countInBeat = 0,
+  transpose = 0,
+  onTransposeChange,
 }) => {
   // Bar number formatting
   const formattedBar = barIndex < 10 ? `00${barIndex}` : barIndex < 100 ? `0${barIndex}` : `${barIndex}`;
@@ -466,6 +472,97 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                 lineHeight: 1,
               }}
               title="Tambah kecepatan (+0.1x)"
+            >
+              +
+            </button>
+          </div>
+
+          {/* Pitch / Transpose Stepper (-12 to +12 semitones) */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px',
+            }}
+          >
+            <button
+              onClick={() => {
+                const newVal = Math.max(-12, transpose - 1);
+                onTransposeChange?.(newVal);
+              }}
+              disabled={transpose <= -12}
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '3px',
+                border: '1px solid #332828',
+                backgroundColor: '#1c1616',
+                color: transpose <= -12 ? '#4a3d3d' : '#a89d9d',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: transpose <= -12 ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 1,
+              }}
+              title="Turunkan tangga nada (-1 semitone / ½ nada)"
+            >
+              −
+            </button>
+            <div
+              onClick={() => onTransposeChange?.(0)}
+              style={{
+                padding: '4px 7px',
+                borderRadius: '4px',
+                backgroundColor: transpose !== 0 ? 'rgba(255, 184, 108, 0.16)' : '#1c1616',
+                border: transpose !== 0 ? '1px solid #ffb86c' : '1px solid #332828',
+                color: transpose !== 0 ? '#ffb86c' : '#a89d9d',
+                fontSize: '11px',
+                fontWeight: 700,
+                fontFamily: 'var(--font-mono)',
+                minWidth: '50px',
+                textAlign: 'center',
+                cursor: transpose !== 0 ? 'pointer' : 'default',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '2px',
+                userSelect: 'none',
+                boxShadow: transpose !== 0 ? '0 0 10px rgba(255, 184, 108, 0.25)' : 'none',
+                transition: 'all 0.15s ease',
+              }}
+              title={
+                transpose === 0
+                  ? 'Tangga Nada Asli (0 semitone). Gunakan −/+ untuk mengubah nada audio & tab.'
+                  : `Transpose: ${transpose > 0 ? `+${transpose}` : transpose} semitone (${Math.abs(transpose) % 2 === 0 ? `${Math.abs(transpose) / 2} nada penuh` : `${Math.abs(transpose) * 0.5} nada`}).\nKlik untuk reset ke nada asli.`
+              }
+            >
+              <span style={{ fontSize: '9px', opacity: 0.7 }}>KEY</span>
+              <span>{transpose === 0 ? '0' : transpose > 0 ? `+${transpose}` : `${transpose}`}</span>
+            </div>
+            <button
+              onClick={() => {
+                const newVal = Math.min(12, transpose + 1);
+                onTransposeChange?.(newVal);
+              }}
+              disabled={transpose >= 12}
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '3px',
+                border: '1px solid #332828',
+                backgroundColor: '#1c1616',
+                color: transpose >= 12 ? '#4a3d3d' : '#a89d9d',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: transpose >= 12 ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 1,
+              }}
+              title="Naikkan tangga nada (+1 semitone / ½ nada)"
             >
               +
             </button>

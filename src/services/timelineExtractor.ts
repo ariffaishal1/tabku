@@ -1,5 +1,5 @@
 import * as alphaTab from '@coderline/alphatab';
-import { midiToNoteName } from '../utils/guitarMath';
+import { midiToNoteName, transposeChordName } from '../utils/guitarMath';
 import { detectChord } from './chordDetector';
 
 export interface ExtractedNote {
@@ -53,15 +53,20 @@ export interface SongTimeline {
   tuningNames: string[];
   metronomeBeats?: MetronomeClick[];
   timeSignature?: string;
+  transpose?: number;
 }
 
 const TICKS_PER_QUARTER = 960;
 
 /**
  * Extracts a structured timeline of beats, notes, and sections from an AlphaTab score
- * for the given track.
+ * for the given track, with optional pitch transposition.
  */
-export function extractSongTimeline(score: alphaTab.model.Score, trackIndex: number): SongTimeline {
+export function extractSongTimeline(
+  score: alphaTab.model.Score,
+  trackIndex: number,
+  transpose: number = 0
+): SongTimeline {
   const targetTrack = score.tracks.find((t) => t.index === trackIndex) || score.tracks[0];
   if (!targetTrack) {
     return {
@@ -71,11 +76,13 @@ export function extractSongTimeline(score: alphaTab.model.Score, trackIndex: num
       trackIndex: 0,
       tuning: [64, 59, 55, 50, 45, 40],
       tuningNames: ['E4', 'B3', 'G3', 'D3', 'A2', 'E2'],
+      transpose,
     };
   }
 
   const staff = targetTrack.staves && targetTrack.staves.length > 0 ? targetTrack.staves[0] : null;
-  const tuning: number[] = staff?.tuning ? Array.from(staff.tuning) : [64, 59, 55, 50, 45, 40];
+  const baseTuning: number[] = staff?.tuning ? Array.from(staff.tuning) : [64, 59, 55, 50, 45, 40];
+  const tuning: number[] = transpose !== 0 ? baseTuning.map((p) => p + transpose) : baseTuning;
   const tuningNames = tuning.map((p) => midiToNoteName(p));
 
   // 1. Calculate MasterBar timeline (tempo, startMs, durationMs, section)
@@ -178,8 +185,8 @@ export function extractSongTimeline(score: alphaTab.model.Score, trackIndex: num
             // AlphaTab menggunakan 1 untuk senar bass terbawah dan numStrings untuk senar nada tertinggi.
             // Konversi ke penomoran fisik tablatur standar: Senar 1 (High E / nada tertinggi) di atas, Senar numStrings (Low E / nada terendah) di bawah.
             const physicalString = numStrings - n.string + 1;
-            const f = n.fret;
-            const midiPitch = n.realValue;
+            const f = Math.max(0, n.fret + transpose);
+            const midiPitch = n.realValue + transpose;
 
             const isBend = (n.bendPoints && n.bendPoints.length > 0) || false;
             let bendAmount = 1.0;
@@ -203,7 +210,7 @@ export function extractSongTimeline(score: alphaTab.model.Score, trackIndex: num
               isBend,
               bendAmount,
               isSlide,
-              slideToFret: n.slideTarget ? n.slideTarget.fret : undefined,
+              slideToFret: n.slideTarget ? Math.max(0, n.slideTarget.fret + transpose) : undefined,
               isHammerPull: n.isHammerPullOrigin,
               hammerPullType: n.isHammerPullOrigin ? 'hammer' : 'pull',
               isVibrato,
@@ -213,8 +220,8 @@ export function extractSongTimeline(score: alphaTab.model.Score, trackIndex: num
             };
           });
 
-          // Detect chord if multi-notes
-          let chordName = beat.chord?.name;
+          // Detect chord if multi-notes (with transposition support)
+          let chordName = beat.chord?.name ? transposeChordName(beat.chord.name, transpose) : undefined;
           if (!chordName && extractedNotes.length > 1) {
             const detected = detectChord(extractedNotes as any);
             if (detected) chordName = detected.name;
@@ -252,6 +259,7 @@ export function extractSongTimeline(score: alphaTab.model.Score, trackIndex: num
     tuningNames,
     metronomeBeats,
     timeSignature,
+    transpose,
   };
 }
 

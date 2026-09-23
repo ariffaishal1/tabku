@@ -98,3 +98,65 @@ export function formatTime(seconds: number): string {
   const secs = Math.floor(seconds % 60);
   return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
+
+const CHROMATIC_SCALE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+const NOTE_TO_SEMITONE_MAP: Record<string, number> = {
+  'C': 0, 'B#': 0,
+  'C#': 1, 'Db': 1,
+  'D': 2,
+  'D#': 3, 'Eb': 3,
+  'E': 4, 'Fb': 4,
+  'F': 5, 'E#': 5,
+  'F#': 6, 'Gb': 6,
+  'G': 7,
+  'G#': 8, 'Ab': 8,
+  'A': 9,
+  'A#': 10, 'Bb': 10,
+  'B': 11, 'Cb': 11,
+};
+
+/**
+ * Transpose a single note name by a number of semitones.
+ * e.g. "A" + 2 -> "B", "C#" + 1 -> "D"
+ */
+export function transposeSingleNote(note: string, semitones: number): string {
+  const clean = note.trim();
+  if (!(clean in NOTE_TO_SEMITONE_MAP)) return note;
+  const originalVal = NOTE_TO_SEMITONE_MAP[clean];
+  const newVal = ((originalVal + semitones) % 12 + 12) % 12;
+  return CHROMATIC_SCALE[newVal];
+}
+
+/**
+ * Transpose a chord name (including root, modifiers, and slash bass notes).
+ * e.g. "Am" + 2 -> "Bm", "D/F#" + 2 -> "E/G#", "C#m7" + 2 -> "D#m7"
+ */
+export function transposeChordName(chordName: string, semitones: number): string {
+  if (!chordName || semitones === 0) return chordName;
+
+  // Handle slash chords like D/F# or C/G
+  if (chordName.includes('/')) {
+    const parts = chordName.split('/');
+    return `${transposeChordName(parts[0], semitones)}/${transposeChordName(parts[1], semitones)}`;
+  }
+
+  // Regex to match root note: e.g. "C#", "Bb", "A", "F#"
+  const match = chordName.match(/^([A-G][#b]?)(.*)$/);
+  if (!match) return chordName;
+
+  const root = match[1];
+  const suffix = match[2];
+  const newRoot = transposeSingleNote(root, semitones);
+  return `${newRoot}${suffix}`;
+}
+
+/**
+ * Format transpose value for user-friendly UI display.
+ * e.g. 0 -> "ORIGINAL", +1 -> "+1 (½)", +2 -> "+2 (1)", -1 -> "-1 (-½)"
+ */
+export function formatTranspose(semitones: number): string {
+  if (semitones === 0) return '0';
+  const sign = semitones > 0 ? '+' : '';
+  return `${sign}${semitones}`;
+}

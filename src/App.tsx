@@ -63,6 +63,9 @@ export const App: React.FC = () => {
   const wasLoopingBeforeABRef = useRef<boolean | null>(null);
   const lastABStatusRef = useRef<{ hasAB: boolean }>({ hasAB: false });
 
+  // Transpose / Virtual Pitch Shifter (FR-NEXT-04: -12 to +12 semitones)
+  const [transpose, setTranspose] = useState<number>(0);
+
   // Real-time Song Timeline (Look-ahead highway & Fretboard data)
   const [timeline, setTimeline] = useState<SongTimeline | null>(null);
   const [activeNotes, setActiveNotes] = useState<TabNote[]>([]);
@@ -296,12 +299,19 @@ export const App: React.FC = () => {
     metronome.setVolume(vol);
   }, []);
 
+  const handleTransposeChange = useCallback((newTranspose: number) => {
+    const clamped = Math.max(-12, Math.min(12, newTranspose));
+    setTranspose(clamped);
+    alphaTabRef.current?.setTranspose(clamped);
+  }, []);
+
   // Handlers
   const handleSelectPreset = (presetId: string) => {
     const preset = PRESET_SONGS.find((p) => p.id === presetId);
     if (!preset) return;
     cancelCountIn();
     handleClearABLoop();
+    setTranspose(0);
     setSelectedPresetId(presetId);
     setSongTitle(preset.title);
     setSongArtist(preset.artist);
@@ -316,6 +326,7 @@ export const App: React.FC = () => {
   const handleFileUpload = (file: File) => {
     cancelCountIn();
     handleClearABLoop();
+    setTranspose(0);
     setSongTitle(file.name.replace(/\.[^/.]+$/, ''));
     setSongArtist('User Tab Import');
     setTimeline(null);
@@ -571,11 +582,23 @@ export const App: React.FC = () => {
           e.preventDefault();
           setIsFlipped((prev) => !prev);
           break;
+        case 'ArrowUp':
+          if (e.shiftKey) {
+            e.preventDefault();
+            handleTransposeChange(transpose + 1);
+          }
+          break;
+        case 'ArrowDown':
+          if (e.shiftKey) {
+            e.preventDefault();
+            handleTransposeChange(transpose - 1);
+          }
+          break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePlayPause, handleToggleMetronome, durationSec, speed]);
+  }, [handlePlayPause, handleToggleMetronome, durationSec, speed, handleTransposeChange, transpose]);
 
   return (
     <div
@@ -599,6 +622,7 @@ export const App: React.FC = () => {
         selectedPresetId={selectedPresetId}
         onSelectPreset={handleSelectPreset}
         onFileUpload={handleFileUpload}
+        transpose={transpose}
       />
 
       {/* 2. Multi-Instrument Track Flow Switcher */}
@@ -630,7 +654,7 @@ export const App: React.FC = () => {
             isPlaying={isPlaying}
             activeNotes={currentSoundingNotes}
             activeChordName={currentChordName}
-            tuningNames={activeTuningNames}
+            tuningNames={timeline?.tuningNames || activeTuningNames}
             activeTechniqueTitle={activeTechnique?.title}
             loopAMs={loopA !== null ? loopA * 1000 : undefined}
             loopBMs={loopB !== null ? loopB * 1000 : undefined}
@@ -644,7 +668,7 @@ export const App: React.FC = () => {
             activeNotes={currentSoundingNotes}
             nextNotes={nextAttackNotes}
             activeTechniqueTitle={activeTechnique?.title}
-            tuningNames={activeTuningNames}
+            tuningNames={timeline?.tuningNames || activeTuningNames}
             isPlaying={isPlaying}
             isFlipped={isFlipped}
           />
@@ -823,6 +847,8 @@ export const App: React.FC = () => {
           onToggleCountIn={() => setIsCountInEnabled((prev) => !prev)}
           isCountingIn={isCountingIn}
           countInBeat={countInBeat}
+          transpose={transpose}
+          onTransposeChange={handleTransposeChange}
         />
       </div>
     </div>

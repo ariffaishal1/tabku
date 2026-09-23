@@ -3,7 +3,7 @@ import * as alphaTab from '@coderline/alphatab';
 import type { TabNote, TrackInfo, ActiveChord, ActiveTechnique } from '../../types/guitar';
 import { extractSongTimeline, type SongTimeline } from '../../services/timelineExtractor';
 import { detectChord } from '../../services/chordDetector';
-import { midiToNoteName, estimateFingers } from '../../utils/guitarMath';
+import { midiToNoteName, estimateFingers, transposeChordName } from '../../utils/guitarMath';
 
 export interface AlphaTabSheetRef {
   playPause: () => void;
@@ -12,6 +12,7 @@ export interface AlphaTabSheetRef {
   seek: (seconds: number) => void;
   setVolume: (volume: number) => void;
   setLoop: (loop: boolean) => void;
+  setTranspose: (semitones: number) => void;
   changeTrack: (trackIndex: number) => void;
   loadTex: (tex: string) => void;
   loadFile: (file: File) => void;
@@ -49,6 +50,7 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
   const activeTrackIndexRef = useRef(activeTrackIndex);
+  const transposeRef = useRef<number>(0);
 
   const callbacksRef = useRef({
     onTracksLoaded,
@@ -118,12 +120,35 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
         apiRef.current.isLooping = loop;
       }
     },
+    setTranspose: (semitones: number) => {
+      transposeRef.current = semitones;
+      const api = apiRef.current;
+      if (!api || !api.score) return;
+
+      // 1. Shift AlphaSynth synthesizer audio pitch for all non-percussion tracks
+      const nonPercussionTracks = api.score.tracks.filter((t) => !t.isPercussion);
+      api.changeTrackTranspositionPitch(nonPercussionTracks, semitones);
+
+      // 2. Set transpositionPitch on staves for 2D notation rendering
+      for (const track of api.score.tracks) {
+        for (const staff of track.staves) {
+          staff.transpositionPitch = -semitones;
+        }
+      }
+
+      // 3. Re-render AlphaTab 2D sheet notation
+      api.render();
+
+      // 4. Re-extract timeline with transposed pitch so Highway and Fretboard stay 100% in sync
+      const updatedTimeline = extractSongTimeline(api.score, activeTrackIndexRef.current, semitones);
+      callbacksRef.current.onTimelineLoaded?.(updatedTimeline);
+    },
     changeTrack: (trackIndex: number) => {
       if (apiRef.current && apiRef.current.score) {
         const targetTrack = apiRef.current.score.tracks.find(t => t.index === trackIndex);
         if (targetTrack) {
           apiRef.current.renderTracks([targetTrack]);
-          const timeline = extractSongTimeline(apiRef.current.score, trackIndex);
+          const timeline = extractSongTimeline(apiRef.current.score, trackIndex, transposeRef.current);
           callbacksRef.current.onTimelineLoaded?.(timeline);
         }
       }
@@ -214,7 +239,18 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
 
       const initialActiveIndex = tracks.length > 0 ? tracks[0].index : 0;
       callbacksRef.current.onTracksLoaded(tracks, initialActiveIndex);
-      const timeline = extractSongTimeline(score, initialActiveIndex);
+
+      if (transposeRef.current !== 0) {
+        const nonPercussionTracks = score.tracks.filter((t) => !t.isPercussion);
+        api.changeTrackTranspositionPitch(nonPercussionTracks, transposeRef.current);
+        for (const track of score.tracks) {
+          for (const staff of track.staves) {
+            staff.transpositionPitch = -transposeRef.current;
+          }
+        }
+      }
+
+      const timeline = extractSongTimeline(score, initialActiveIndex, transposeRef.current);
       callbacksRef.current.onTimelineLoaded?.(timeline);
     });
 
@@ -233,18 +269,20 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
         return;
       }
 
+      const tr = transposeRef.current;
       const beatStaff = beat.voice?.bar?.staff;
-      const activeTuning: number[] = beatStaff?.tuning ? Array.from(beatStaff.tuning) : [64, 59, 55, 50, 45, 40];
+      const baseTuning: number[] = beatStaff?.tuning ? Array.from(beatStaff.tuning) : [64, 59, 55, 50, 45, 40];
+      const activeTuning: number[] = tr !== 0 ? baseTuning.map((p) => p + tr) : baseTuning;
       const rawNotes = beat.notes || [];
 
-      // Map to TabNote
+      // Map to TabNote (with transposition)
       const numStrings = activeTuning.length;
       const tabNotes: TabNote[] = rawNotes.map((n) => {
         // AlphaTab menggunakan 1 untuk senar bass terbawah dan numStrings untuk senar nada tertinggi.
         // Konversi ke penomoran fisik standar: Senar 1 (High E / nada tertinggi), Senar 6 (Low E / nada terendah)
         const physicalString = numStrings - n.string + 1;
-        const f = n.fret;
-        const midiPitch = n.realValue;
+        const f = Math.max(0, n.fret + tr);
+        const midiPitch = n.realValue + tr;
 
         // Bending detection
         const isBend = (n.bendPoints && n.bendPoints.length > 0) || false;
@@ -271,7 +309,7 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
           isHammerPull: n.isHammerPullOrigin,
           hammerPullType: n.isHammerPullOrigin ? 'hammer' : 'pull',
           isSlide,
-          slideToFret: n.slideTarget ? n.slideTarget.fret : undefined,
+          slideToFret: n.slideTarget ? Math.max(0, n.slideTarget.fret + tr) : undefined,
           isVibrato,
           isPalmMute: (n as any).isPalmMute ?? false,
           isHarmonic: n.isHarmonic,
@@ -287,8 +325,9 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
         }
       });
 
-      // Detect chord name from notes
-      const chord = detectChord(tabNotes, beat.chord?.name);
+      // Detect chord name from notes (with transposition)
+      const transposedChordName = beat.chord?.name ? transposeChordName(beat.chord.name, tr) : undefined;
+      const chord = detectChord(tabNotes, transposedChordName);
       callbacksRef.current.onActiveNotesChange(tabNotes, chord);
 
       // Detect technique for beginner HUD

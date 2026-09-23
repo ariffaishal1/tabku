@@ -13,6 +13,7 @@ interface TopNavProps {
   selectedPresetId: string;
   onSelectPreset: (presetId: string) => void;
   onFileUpload: (file: File) => void;
+  transpose?: number;
 }
 
 export const TopNav: React.FC<TopNavProps> = ({
@@ -25,6 +26,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   selectedPresetId,
   onSelectPreset,
   onFileUpload,
+  transpose = 0,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -233,7 +235,14 @@ export const TopNav: React.FC<TopNavProps> = ({
             letterSpacing: '0.8px',
           }}
         >
-          <span>{tuningName}</span>
+          <span>
+            {tuningName}
+            {transpose !== 0 && (
+              <span style={{ marginLeft: '4px', fontSize: '9.5px', opacity: 0.9, backgroundColor: 'rgba(0,0,0,0.15)', padding: '1px 4px', borderRadius: '3px' }}>
+                {transpose > 0 ? `+${transpose}` : transpose}st
+              </span>
+            )}
+          </span>
           <span style={{ fontSize: '10px', opacity: 0.85 }}>{tempo} BPM</span>
         </div>
 
