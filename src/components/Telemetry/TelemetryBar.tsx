@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, Square, Zap, Music, Volume2, VolumeX, X, Metronome, Timer } from 'lucide-react';
+import { Play, Pause, Square, Zap, Music, Volume2, VolumeX, X, Metronome, Timer, TrendingUp } from 'lucide-react';
 import type { ExtractedNote } from '../../services/timelineExtractor';
 import { formatTime } from '../../utils/guitarMath';
 
@@ -56,6 +56,13 @@ interface TelemetryBarProps {
   // Transpose / Virtual Pitch Shifter (FR-NEXT-04)
   transpose?: number;
   onTransposeChange?: (semitones: number) => void;
+
+  // Speed Trainer (FR-NEXT-06)
+  isSpeedTrainer?: boolean;
+  onToggleSpeedTrainer?: () => void;
+  speedTrainerStep?: number;
+  speedTrainerTarget?: number;
+  speedTrainerLoopCount?: number;
 }
 
 export const TelemetryBar: React.FC<TelemetryBarProps> = ({
@@ -97,6 +104,11 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
   countInBeat = 0,
   transpose = 0,
   onTransposeChange,
+  isSpeedTrainer = false,
+  onToggleSpeedTrainer,
+  speedTrainerStep = 0.05,
+  speedTrainerTarget = 1.0,
+  speedTrainerLoopCount = 0,
 }) => {
   // Bar number formatting
   const formattedBar = barIndex < 10 ? `00${barIndex}` : barIndex < 100 ? `0${barIndex}` : `${barIndex}`;
@@ -591,6 +603,48 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
             <Zap size={13} fill={isSoloSlowdown ? '#FF7A65' : 'none'} />
             <span>SOLO 50%</span>
           </button>
+
+          {/* Speed Trainer (FR-NEXT-06) */}
+          {onToggleSpeedTrainer && (
+            <button
+              onClick={onToggleSpeedTrainer}
+              className={isSpeedTrainer ? 'studio-btn-coral' : 'studio-btn-base'}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '6px 11px',
+                borderRadius: '4px',
+                border: isSpeedTrainer ? '1.5px solid #ffb86c' : '1px solid #3d3232',
+                backgroundColor: isSpeedTrainer ? 'rgba(255, 184, 108, 0.2)' : '#1f1919',
+                color: isSpeedTrainer ? '#ffb86c' : '#c5b8b8',
+                fontSize: '10.5px',
+                fontWeight: 800,
+                fontFamily: 'var(--font-mono)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: isSpeedTrainer ? '0 0 10px rgba(255, 184, 108, 0.35)' : 'none',
+              }}
+              title={`Speed Trainer (FR-NEXT-06)\nKeyboard shortcut: T\n${isSpeedTrainer ? `Aktif: Naik +${Math.round(speedTrainerStep * 100)}% per putaran loop (Target: ${Math.round(speedTrainerTarget * 100)}%)\nPutaran selesai: ${speedTrainerLoopCount}x` : 'Otomatis naikkan tempo (+5%) setiap kali satu putaran loop A-B selesai'}`}
+            >
+              <TrendingUp size={13} color={isSpeedTrainer ? '#ffb86c' : '#a89d9d'} />
+              <span>TRAINER</span>
+              {isSpeedTrainer && (
+                <span
+                  style={{
+                    fontSize: '9px',
+                    backgroundColor: '#ffb86c',
+                    color: '#120e0e',
+                    padding: '1px 4px',
+                    borderRadius: '3px',
+                    fontWeight: 900,
+                  }}
+                >
+                  +{Math.round(speedTrainerStep * 100)}%
+                </span>
+              )}
+            </button>
+          )}
 
           {/* A-B Looper Cluster */}
           <div

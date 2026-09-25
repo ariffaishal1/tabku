@@ -18,16 +18,12 @@ interface FlatFretboard2DProps {
   isPlaying?: boolean;
   isFlipped?: boolean;
 
-  // Scale Lab Overlay Props (FR-NEXT-05)
+  // Scale Lab Canvas Overlay Props (FR-NEXT-05)
   isScaleMode?: boolean;
   scaleRoot?: number;
   scaleId?: string;
   scaleDisplayMode?: ScaleDisplayMode;
   scalePosition?: number | 'all';
-  onScaleChange?: (root: number, scaleId: string) => void;
-  onScalePositionChange?: (position: number | 'all') => void;
-  onToggleScaleMode?: () => void;
-  onToggleDisplayMode?: () => void;
   backingProgressionName?: string;
 }
 
@@ -53,10 +49,6 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
   scaleId = 'minor_pentatonic',
   scaleDisplayMode = 'degrees',
   scalePosition = 'all',
-  onScaleChange,
-  onScalePositionChange,
-  onToggleScaleMode,
-  onToggleDisplayMode,
   backingProgressionName,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -185,7 +177,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       const isFullHeight = height > 320;
       const leftMargin = 48; // Space for string pitch labels
       const rightMargin = 20;
-      const topMargin = isFullHeight ? 56 : 46; // Generous headroom for Scale Lab toolbar
+      const topMargin = isFullHeight ? 36 : 28; // Reduced: no floating toolbar overlay anymore
       const bottomMargin = isFullHeight ? 32 : 26; // Space for fret numbers
 
       const fretboardWidth = width - leftMargin - rightMargin;
@@ -968,6 +960,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
           </div>
 
           <div
+            title={positionText}
             style={{
               fontSize: '10.5px',
               fontWeight: 700,
@@ -984,6 +977,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
           </div>
 
           <div
+            title={notesSummaryText}
             style={{
               fontSize: '9px',
               fontWeight: 600,
@@ -1081,200 +1075,6 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
             }}
           />
 
-          {/* Floating Scale Lab Overlay Toolbar (FR-NEXT-05) */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '8px',
-              right: '16px',
-              zIndex: 10,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              backgroundColor: 'rgba(18, 14, 14, 0.90)',
-              backdropFilter: 'blur(8px)',
-              border: isScaleMode ? '1px solid #FF7A65' : '1px solid #362c2c',
-              borderRadius: '6px',
-              padding: '4px 10px',
-              boxShadow: isScaleMode ? '0 0 14px rgba(255, 122, 101, 0.2)' : 'none',
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            {/* Scale Lab Toggle Button */}
-            <button
-              onClick={onToggleScaleMode}
-              title="Toggle Fretboard Scale Roadmap Overlay (Key: S)"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                backgroundColor: isScaleMode ? '#FF7A65' : '#231c1c',
-                color: isScaleMode ? '#120e0e' : '#a89d9d',
-                border: isScaleMode ? '1px solid #FF7A65' : '1px solid #362c2c',
-                borderRadius: '4px',
-                padding: '3px 8px',
-                fontSize: '10px',
-                fontWeight: 800,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <span>🗺️</span>
-              <span>SCALE LAB</span>
-            </button>
-
-            {isScaleMode && (
-              <>
-                {/* Root Note Selector */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ fontSize: '9px', color: '#7a7070', fontWeight: 700 }}>ROOT</span>
-                  <select
-                    id="scale-root-select"
-                    value={scaleRoot}
-                    onChange={(e) => onScaleChange?.(parseInt(e.target.value, 10), scaleId)}
-                    style={{
-                      backgroundColor: '#181414',
-                      color: '#FF7A65',
-                      border: '1px solid #362c2c',
-                      borderRadius: '4px',
-                      padding: '2px 6px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      outline: 'none',
-                    }}
-                  >
-                    {ROOT_NOTES.map((r) => (
-                      <option key={r.pitchClass} value={r.pitchClass}>
-                        {r.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Scale Type Selector */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ fontSize: '9px', color: '#7a7070', fontWeight: 700 }}>SCALE</span>
-                  <select
-                    id="scale-type-select"
-                    value={scaleId}
-                    onChange={(e) => onScaleChange?.(scaleRoot, e.target.value)}
-                    style={{
-                      backgroundColor: '#181414',
-                      color: '#f0ecec',
-                      border: '1px solid #362c2c',
-                      borderRadius: '4px',
-                      padding: '2px 6px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      outline: 'none',
-                    }}
-                  >
-                    {SCALE_DEFINITIONS.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Position / Box Selector (Segmented Pill Cluster) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                  <span style={{ fontSize: '9px', color: '#7a7070', fontWeight: 700, marginRight: '2px' }}>POSISI</span>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      backgroundColor: '#181414',
-                      border: '1px solid #362c2c',
-                      borderRadius: '4px',
-                      padding: '1px',
-                      gap: '1px',
-                    }}
-                  >
-                    {SCALE_POSITION_OPTIONS.map((opt) => {
-                      const isSelected = scalePosition === opt.value;
-                      const labelShort = opt.value === 'all' ? 'ALL' : `${opt.value}`;
-                      return (
-                        <button
-                          key={opt.value}
-                          id={`scale-pos-btn-${opt.value}`}
-                          onClick={() => onScalePositionChange?.(opt.value)}
-                          title={opt.label}
-                          style={{
-                            backgroundColor: isSelected ? '#8be9fd' : 'transparent',
-                            color: isSelected ? '#120e0e' : '#a89d9d',
-                            border: 'none',
-                            borderRadius: '3px',
-                            padding: '2px 7px',
-                            fontSize: '9.5px',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: isSelected ? 900 : 700,
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          {labelShort}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Degrees / Note Names Toggle */}
-                <button
-                  onClick={onToggleDisplayMode}
-                  title="Toggle between Scale Degrees (R, ♭3, 5) and Pitch Note Names (A, C, D...)"
-                  style={{
-                    backgroundColor: '#201a1a',
-                    color: scaleDisplayMode === 'degrees' ? '#f1fa8c' : '#8be9fd',
-                    border: '1px solid #362c2c',
-                    borderRadius: '4px',
-                    padding: '3px 8px',
-                    fontSize: '9.5px',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {scaleDisplayMode === 'degrees' ? 'DEG (R, ♭3, 5)' : 'NOTE (A, C, D)'}
-                </button>
-
-                {/* Dynamic Backing Track Info Pill */}
-                {backingProgressionName && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      backgroundColor: 'rgba(255, 122, 101, 0.1)',
-                      border: '1px solid rgba(255, 122, 101, 0.3)',
-                      borderRadius: '4px',
-                      padding: '3px 8px',
-                      fontSize: '9px',
-                      color: '#ffb86c',
-                      fontWeight: 700,
-                    }}
-                    title={`Active Dynamic Backing Track: ${backingProgressionName}`}
-                  >
-                    <span>🎵</span>
-                    <span
-                      style={{
-                        maxWidth: '160px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {backingProgressionName}
-                    </span>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
         </div>
 
         {/* Legend Bar at Bottom */}

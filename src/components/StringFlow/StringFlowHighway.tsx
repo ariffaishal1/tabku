@@ -308,9 +308,13 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
       const strikeBadgeX = STRIKE_X - strikeBadgeW / 2;
       const strikeBadgeY = 8;
 
+      const isLoopAAtStrike = loopAMs !== undefined && Math.abs(loopAMs - currentTimeMs) < 60;
+      const strikeText = isLoopAAtStrike ? 'LOOP A' : 'STRIKE';
+      const strikeColor = isLoopAAtStrike ? '#50fa7b' : '#FF7A65';
+
       ctx.save();
       ctx.fillStyle = '#221918';
-      ctx.strokeStyle = '#FF7A65';
+      ctx.strokeStyle = strikeColor;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.roundRect(strikeBadgeX, strikeBadgeY, strikeBadgeW, strikeBadgeH, 3);
@@ -318,17 +322,17 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
       ctx.stroke();
 
       // Neon indicator dot
-      ctx.fillStyle = '#FF7A65';
+      ctx.fillStyle = strikeColor;
       ctx.beginPath();
       ctx.arc(strikeBadgeX + 7, strikeBadgeY + strikeBadgeH / 2, 2.5, 0, Math.PI * 2);
       ctx.fill();
 
       // Strike text
-      ctx.fillStyle = '#FF7A65';
+      ctx.fillStyle = strikeColor;
       ctx.font = '800 8.5px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('STRIKE', strikeBadgeX + 25, strikeBadgeY + strikeBadgeH / 2);
+      ctx.fillText(strikeText, strikeBadgeX + 25, strikeBadgeY + strikeBadgeH / 2);
 
       // Downward pointer arrow pointing to the strike line
       ctx.beginPath();
@@ -336,7 +340,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
       ctx.lineTo(STRIKE_X + 4, strikeBadgeY + strikeBadgeH);
       ctx.lineTo(STRIKE_X, strikeBadgeY + strikeBadgeH + 4);
       ctx.closePath();
-      ctx.fillStyle = '#FF7A65';
+      ctx.fillStyle = strikeColor;
       ctx.fill();
       ctx.restore();
 
@@ -795,41 +799,192 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
         });
       }
 
-      // 7. A-B Loop markers on highway
+      // 7. A-B Loop markers and shaded active zone on highway (FR-NEXT-01 / Visual Polish)
       if (loopAMs !== undefined || loopBMs !== undefined) {
         const lookAheadMs = 3000;
-        const drawLoopMarker = (markerMs: number, color: string, label: string) => {
-          const offset = markerMs - currentTimeMs;
-          if (offset >= 0 && offset <= lookAheadMs) {
-            const progress = offset / lookAheadMs;
-            const markerX = STRIKE_X + progress * highwayWidth;
+        const xA = loopAMs !== undefined ? STRIKE_X + ((loopAMs - currentTimeMs) / lookAheadMs) * highwayWidth : null;
+        const xB = loopBMs !== undefined ? STRIKE_X + ((loopBMs - currentTimeMs) / lookAheadMs) * highwayWidth : null;
+        const isInLoop =
+          loopAMs !== undefined &&
+          loopBMs !== undefined &&
+          currentTimeMs >= loopAMs &&
+          currentTimeMs <= loopBMs;
 
+        // A. Shaded Active Loop Zone between A and B
+        if (loopAMs !== undefined && loopBMs !== undefined && loopBMs > loopAMs) {
+          const leftX = Math.max(STRIKE_X, Math.min(width, xA !== null ? xA : STRIKE_X));
+          const rightX = Math.max(STRIKE_X, Math.min(width, xB !== null ? xB : width));
+
+          if (rightX > leftX) {
             ctx.save();
+            // Luminous tinted fill across the loop window
+            const loopGrad = ctx.createLinearGradient(leftX, 0, rightX, 0);
+            loopGrad.addColorStop(0, 'rgba(80, 250, 123, 0.12)'); // soft neon green
+            loopGrad.addColorStop(1, 'rgba(255, 122, 101, 0.12)'); // soft coral red
+            ctx.fillStyle = loopGrad;
+            ctx.fillRect(leftX, 36, rightX - leftX, height - bottomPadding - 28);
+
+            // Top and bottom track boundaries with neon dash
+            ctx.strokeStyle = 'rgba(80, 250, 123, 0.5)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([5, 3]);
             ctx.beginPath();
-            ctx.moveTo(markerX, 36);
-            ctx.lineTo(markerX, height - bottomPadding + 10);
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = color;
-            ctx.setLineDash([4, 3]);
+            ctx.moveTo(leftX, 36);
+            ctx.lineTo(rightX, 36);
+            ctx.moveTo(leftX, height - bottomPadding + 8);
+            ctx.lineTo(rightX, height - bottomPadding + 8);
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Label badge
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.roundRect(markerX - 8, height - bottomPadding + 6, 16, 14, 2);
-            ctx.fill();
-            ctx.fillStyle = '#120e0e';
-            ctx.font = '800 9px "JetBrains Mono", monospace';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(label, markerX, height - bottomPadding + 13);
+            // Connecting Ribbon Header in ruler zone (y = 11..27)
+            const ribbonW = rightX - leftX;
+            if (ribbonW > 60) {
+              ctx.fillStyle = 'rgba(255, 184, 108, 0.15)';
+              ctx.strokeStyle = 'rgba(255, 184, 108, 0.4)';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.roundRect(leftX + 2, 11, ribbonW - 4, 16, 3);
+              ctx.fill();
+              ctx.stroke();
+
+              ctx.fillStyle = '#ffb86c';
+              ctx.font = '800 8.5px "JetBrains Mono", monospace';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('🔁 LOOP REGION', leftX + ribbonW / 2, 19);
+            }
             ctx.restore();
           }
-        };
+        }
 
-        if (loopAMs !== undefined) drawLoopMarker(loopAMs, '#50fa7b', 'A');
-        if (loopBMs !== undefined) drawLoopMarker(loopBMs, '#ff5555', 'B');
+        // B. Marker A: Green Laser Beam & Flags
+        if (loopAMs !== undefined && xA !== null && xA >= STRIKE_X - 10 && xA <= width + 20) {
+          ctx.save();
+          const isAtStrike = Math.abs(xA - STRIKE_X) < 22;
+
+          // Luminous Laser Beam
+          ctx.beginPath();
+          ctx.moveTo(xA, isAtStrike ? 30 : 26);
+          ctx.lineTo(xA, height - bottomPadding + 8);
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = '#50fa7b';
+          ctx.shadowColor = '#50fa7b';
+          ctx.shadowBlur = 12;
+          ctx.stroke();
+
+          // Top Flag Badge at Ruler (skip when merged with STRIKE badge)
+          if (!isAtStrike) {
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#50fa7b';
+            ctx.beginPath();
+            ctx.roundRect(xA - 14, 8, 28, 17, 3);
+            ctx.fill();
+
+            // Downward Pointer Arrow
+            ctx.beginPath();
+            ctx.moveTo(xA - 4, 25);
+            ctx.lineTo(xA + 4, 25);
+            ctx.lineTo(xA, 29);
+            ctx.closePath();
+            ctx.fill();
+
+            // Text
+            ctx.fillStyle = '#120e0e';
+            ctx.font = '900 9px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('A [', xA, 16.5);
+          }
+
+          // Bottom Timestamp Badge
+          const secA = (loopAMs / 1000).toFixed(1);
+          ctx.fillStyle = '#181313';
+          ctx.strokeStyle = '#50fa7b';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.roundRect(xA - 18, height - bottomPadding + 8, 36, 14, 3);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#50fa7b';
+          ctx.font = '800 8px "JetBrains Mono", monospace';
+          ctx.fillText(`${secA}s`, xA, height - bottomPadding + 15);
+          ctx.restore();
+        }
+
+        // C. Marker B: Coral Laser Beam & Flags
+        if (loopBMs !== undefined && xB !== null && xB >= STRIKE_X - 10 && xB <= width + 20) {
+          ctx.save();
+          const isAtStrike = Math.abs(xB - STRIKE_X) < 22;
+
+          // Luminous Laser Beam
+          ctx.beginPath();
+          ctx.moveTo(xB, isAtStrike ? 30 : 26);
+          ctx.lineTo(xB, height - bottomPadding + 8);
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = '#FF7A65';
+          ctx.shadowColor = '#FF7A65';
+          ctx.shadowBlur = 12;
+          ctx.stroke();
+
+          // Top Flag Badge at Ruler (skip when merged with STRIKE badge)
+          if (!isAtStrike) {
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#FF7A65';
+            ctx.beginPath();
+            ctx.roundRect(xB - 14, 8, 28, 17, 3);
+            ctx.fill();
+
+            // Downward Pointer Arrow
+            ctx.beginPath();
+            ctx.moveTo(xB - 4, 25);
+            ctx.lineTo(xB + 4, 25);
+            ctx.lineTo(xB, 29);
+            ctx.closePath();
+            ctx.fill();
+
+            // Text
+            ctx.fillStyle = '#120e0e';
+            ctx.font = '900 9px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('] B', xB, 16.5);
+          }
+
+          // Bottom Timestamp Badge
+          const secB = (loopBMs / 1000).toFixed(1);
+          ctx.fillStyle = '#181313';
+          ctx.strokeStyle = '#FF7A65';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.roundRect(xB - 18, height - bottomPadding + 8, 36, 14, 3);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#FF7A65';
+          ctx.font = '800 8px "JetBrains Mono", monospace';
+          ctx.fillText(`${secB}s`, xB, height - bottomPadding + 15);
+          ctx.restore();
+        }
+
+        // D. In-Loop Active Indicator on Strike Line
+        if (isInLoop) {
+          ctx.save();
+          ctx.fillStyle = 'rgba(80, 250, 123, 0.18)';
+          ctx.strokeStyle = '#50fa7b';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.roundRect(STRIKE_X - 22, height - bottomPadding - 18, 44, 15, 3);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#50fa7b';
+          ctx.font = '800 8px "JetBrains Mono", monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('IN LOOP', STRIKE_X, height - bottomPadding - 10.5);
+          ctx.restore();
+        }
       }
 
       ctx.restore();

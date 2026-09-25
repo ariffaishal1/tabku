@@ -13,7 +13,8 @@ import {
 } from './services/timelineExtractor';
 import { metronome } from './services/metronome';
 import type { TabNote, TrackInfo, ActiveChord, ActiveTechnique } from './types/guitar';
-import { generateBackingTrackTex, type ScaleDisplayMode } from './services/scaleTheory';
+import { generateBackingTrackTex, type ScaleDisplayMode, ROOT_NOTES, SCALE_DEFINITIONS, SCALE_POSITION_OPTIONS } from './services/scaleTheory';
+import { KeyboardShortcutsModal } from './components/Modals/KeyboardShortcutsModal';
 
 export const App: React.FC = () => {
   const alphaTabRef = useRef<AlphaTabSheetRef>(null);
@@ -36,6 +37,9 @@ export const App: React.FC = () => {
   const [volume, setVolume] = useState<number>(0.8);
   const [isSheetExpanded, setIsSheetExpanded] = useState<boolean>(false);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
+
+  // Modal State
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState<boolean>(false);
 
   // Metronome & Count-In State
   const [timeSignature, setTimeSignature] = useState<string>('4/4');
@@ -67,6 +71,19 @@ export const App: React.FC = () => {
   // Transpose / Virtual Pitch Shifter (FR-NEXT-04: -12 to +12 semitones)
   const [transpose, setTranspose] = useState<number>(0);
 
+  // Speed Trainer State (FR-NEXT-06: Auto incremental tempo per loop)
+  const [isSpeedTrainer, setIsSpeedTrainer] = useState<boolean>(false);
+  const [speedTrainerStep, setSpeedTrainerStep] = useState<number>(0.05); // +5% (0.05x)
+  const [speedTrainerTarget, setSpeedTrainerTarget] = useState<number>(1.0); // 100% (1.0x)
+  const [speedTrainerLoopCount, setSpeedTrainerLoopCount] = useState<number>(0);
+  const [speedTrainerNotification, setSpeedTrainerNotification] = useState<string | null>(null);
+
+  const isSpeedTrainerRef = useRef<boolean>(false);
+  const speedTrainerStepRef = useRef<number>(0.05);
+  const speedTrainerTargetRef = useRef<number>(1.0);
+  const speedRef = useRef<number>(speed);
+  const triggerSpeedTrainerStepRef = useRef<() => void>(() => {});
+
   // Scale Practice Lab State (FR-NEXT-05)
   const [isScaleMode, setIsScaleMode] = useState<boolean>(true);
   const [scaleRoot, setScaleRoot] = useState<number>(9); // Default A (pitch class 9)
@@ -76,6 +93,34 @@ export const App: React.FC = () => {
   const [backingProgressionName, setBackingProgressionName] = useState<string>(
     'A Minor Rock/Ballad Groove'
   );
+
+  // Scale Lab Bar Horizontal Scroll State & Ref (Responsive overflow indicator)
+  const scaleLabBarRef = useRef<HTMLDivElement>(null);
+  const [scaleLabCanScrollRight, setScaleLabCanScrollRight] = useState<boolean>(false);
+  const [scaleLabCanScrollLeft, setScaleLabCanScrollLeft] = useState<boolean>(false);
+
+  const checkScaleLabScroll = useCallback(() => {
+    const el = scaleLabBarRef.current;
+    if (!el) return;
+    const canLeft = el.scrollLeft > 6;
+    const canRight = el.scrollLeft < el.scrollWidth - el.clientWidth - 6;
+    setScaleLabCanScrollLeft(canLeft);
+    setScaleLabCanScrollRight(canRight);
+  }, []);
+
+  useEffect(() => {
+    if (!isScaleMode) {
+      setScaleLabCanScrollLeft(false);
+      setScaleLabCanScrollRight(false);
+      return;
+    }
+    const timer = setTimeout(checkScaleLabScroll, 260);
+    window.addEventListener('resize', checkScaleLabScroll);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', checkScaleLabScroll);
+    };
+  }, [isScaleMode, checkScaleLabScroll, scalePosition, scaleId, scaleRoot]);
 
   // Real-time Song Timeline (Look-ahead highway & Fretboard data)
   const [timeline, setTimeline] = useState<SongTimeline | null>(null);
@@ -118,6 +163,32 @@ export const App: React.FC = () => {
     currentTimeMsRef.current = currentTimeMs;
   }, [currentTimeMs]);
 
+  // Sync Speed Trainer refs for high-precision RAF loop
+  useEffect(() => {
+    isSpeedTrainerRef.current = isSpeedTrainer;
+  }, [isSpeedTrainer]);
+
+  useEffect(() => {
+    speedTrainerStepRef.current = speedTrainerStep;
+  }, [speedTrainerStep]);
+
+  useEffect(() => {
+    speedTrainerTargetRef.current = speedTrainerTarget;
+  }, [speedTrainerTarget]);
+
+  useEffect(() => {
+    speedRef.current = speed;
+  }, [speed]);
+
+  // Auto-clear Speed Trainer notification toast
+  useEffect(() => {
+    if (!speedTrainerNotification) return;
+    const timer = setTimeout(() => {
+      setSpeedTrainerNotification(null);
+    }, 2200);
+    return () => clearTimeout(timer);
+  }, [speedTrainerNotification]);
+
   // 60FPS High-Precision Interpolation loop during playback + A-B Loop auto-seek + Metronome Sync
   useEffect(() => {
     if (!isPlaying) return;
@@ -141,6 +212,12 @@ export const App: React.FC = () => {
         lastLoopSeekTimeRef.current = now;
         handleSeek(a);
         lastScheduledBeatTimeRef.current = a * 1000 - 1;
+
+        // Speed Trainer: Bump tempo on completed loop cycle
+        if (isSpeedTrainerRef.current) {
+          triggerSpeedTrainerStepRef.current();
+        }
+
         animId = requestAnimationFrame(loop);
         return;
       }
@@ -434,13 +511,74 @@ export const App: React.FC = () => {
     lastScheduledBeatTimeRef.current = ms - 1;
   };
 
-  const handleSpeedChange = (newSpeed: number) => {
+  const handleSpeedChange = useCallback((newSpeed: number) => {
     setSpeed(newSpeed);
+    speedRef.current = newSpeed;
     alphaTabRef.current?.setSpeed(newSpeed);
     if (newSpeed === 1.0) {
       setIsSoloSlowdown(false);
     }
-  };
+  }, []);
+
+  // Speed Trainer: Step up tempo automatically per loop cycle
+  const triggerSpeedTrainerStep = useCallback(() => {
+    const currentSpeed = speedRef.current;
+    const step = speedTrainerStepRef.current;
+    const target = speedTrainerTargetRef.current;
+
+    if (currentSpeed < target) {
+      const nextSpeed = Math.round(Math.min(target, currentSpeed + step) * 100) / 100;
+      handleSpeedChange(nextSpeed);
+      setSpeedTrainerLoopCount((prev) => {
+        const newCount = prev + 1;
+        if (nextSpeed >= target) {
+          setSpeedTrainerNotification(`🎯 TARGET TERCAPAI: ${Math.round(nextSpeed * 100)}% (Siklus ${newCount}x)!`);
+        } else {
+          setSpeedTrainerNotification(`⚡ TEMPO NAIK: ${Math.round(nextSpeed * 100)}% (+${Math.round(step * 100)}%) · Loop ${newCount}x`);
+        }
+        return newCount;
+      });
+    } else {
+      setSpeedTrainerLoopCount((prev) => {
+        const newCount = prev + 1;
+        setSpeedTrainerNotification(`🎯 SIKLUS ${newCount}x: TEMPO PENUH ${Math.round(target * 100)}%`);
+        return newCount;
+      });
+    }
+  }, [handleSpeedChange]);
+
+  useEffect(() => {
+    triggerSpeedTrainerStepRef.current = triggerSpeedTrainerStep;
+  }, [triggerSpeedTrainerStep]);
+
+  const handleToggleSpeedTrainer = useCallback(() => {
+    if (isSpeedTrainer) {
+      setIsSpeedTrainer(false);
+      setSpeedTrainerNotification(null);
+    } else {
+      setIsSpeedTrainer(true);
+      setSpeedTrainerLoopCount(0);
+
+      // Pastikan ada rentang loop A-B; jika belum, buatkan loop cerdas dari posisi saat ini
+      if (loopARef.current === null || loopBRef.current === null || loopBRef.current <= loopARef.current) {
+        const currentSec = currentTimeMsRef.current / 1000;
+        const startSec = Math.max(0, currentSec);
+        const endSec = durationSec > 0 ? Math.min(durationSec, startSec + 4) : startSec + 4;
+        setLoopA(startSec);
+        loopARef.current = startSec;
+        setLoopB(endSec);
+        loopBRef.current = endSec;
+      }
+
+      // Jika tempo sedang normal (1.0x / 100%), turunkan ke 0.5x (50%) untuk mulai latihan bertahap
+      if (speedRef.current >= 1.0) {
+        handleSpeedChange(0.5);
+        setSpeedTrainerNotification('⚡ SPEED TRAINER AKTIF: Dimulai dari 50% (+5%/loop)');
+      } else {
+        setSpeedTrainerNotification(`⚡ SPEED TRAINER AKTIF: ${Math.round(speedRef.current * 100)}% ➔ 100%`);
+      }
+    }
+  }, [isSpeedTrainer, durationSec, handleSpeedChange]);
 
   const handleToggleSoloSlowdown = () => {
     if (isSoloSlowdown) {
@@ -585,10 +723,22 @@ export const App: React.FC = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
+      if (e.key === '?') {
+        e.preventDefault();
+        setIsShortcutsOpen((prev) => !prev);
+        return;
+      }
+
       switch (e.code) {
         case 'Space':
           e.preventDefault();
           handlePlayPause();
+          break;
+        case 'Slash':
+          if (e.shiftKey) {
+            e.preventDefault();
+            setIsShortcutsOpen((prev) => !prev);
+          }
           break;
         case 'KeyM':
           e.preventDefault();
@@ -634,6 +784,10 @@ export const App: React.FC = () => {
           e.preventDefault();
           handleToggleScaleMode();
           break;
+        case 'KeyT':
+          e.preventDefault();
+          handleToggleSpeedTrainer();
+          break;
         case 'ArrowUp':
           if (e.shiftKey) {
             e.preventDefault();
@@ -650,7 +804,7 @@ export const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePlayPause, handleToggleMetronome, durationSec, speed, handleTransposeChange, transpose, handleToggleScaleMode]);
+  }, [handlePlayPause, handleToggleMetronome, durationSec, speed, handleTransposeChange, transpose, handleToggleScaleMode, handleToggleSpeedTrainer]);
 
   return (
     <div
@@ -675,6 +829,9 @@ export const App: React.FC = () => {
         onSelectPreset={handleSelectPreset}
         onFileUpload={handleFileUpload}
         transpose={transpose}
+        isScaleMode={isScaleMode}
+        onToggleScaleMode={handleToggleScaleMode}
+        onOpenShortcuts={() => setIsShortcutsOpen(true)}
       />
 
       {/* 2. Multi-Instrument Track Flow Switcher */}
@@ -685,6 +842,274 @@ export const App: React.FC = () => {
         onToggleMute={handleToggleMute}
         onToggleSolo={handleToggleSolo}
       />
+
+      {/* 2b. Scale Lab Control Bar (Smooth Slide & Fade Animation + Overflow Indicators) */}
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: isScaleMode ? '36px' : '0px',
+          maxHeight: isScaleMode ? '36px' : '0px',
+          opacity: isScaleMode ? 1 : 0,
+          overflow: 'hidden',
+          flexShrink: 0,
+          transition:
+            'height 0.22s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.22s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
+          pointerEvents: isScaleMode ? 'auto' : 'none',
+        }}
+      >
+        {/* Left Scroll Indicator Arrow / Gradient */}
+        {isScaleMode && scaleLabCanScrollLeft && (
+          <button
+            onClick={() => scaleLabBarRef.current?.scrollBy({ left: -140, behavior: 'smooth' })}
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: '32px',
+              background: 'linear-gradient(to right, #161212 55%, rgba(22, 18, 18, 0))',
+              border: 'none',
+              zIndex: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              paddingLeft: '6px',
+              color: '#FF7A65',
+              fontSize: '14px',
+              fontWeight: 900,
+              cursor: 'pointer',
+              outline: 'none',
+              boxShadow: '2px 0 8px rgba(0,0,0,0.5)',
+            }}
+            title="Scroll ke kiri (opsi Scale Lab sebelumnya)"
+          >
+            ‹
+          </button>
+        )}
+
+        <div
+          ref={scaleLabBarRef}
+          onScroll={checkScaleLabScroll}
+          className="scale-lab-bar-scroll"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '0 16px',
+            height: '36px',
+            backgroundColor: '#161212',
+            borderBottom: isScaleMode ? '1px solid #2a2020' : '1px solid transparent',
+            boxSizing: 'border-box',
+            fontFamily: 'var(--font-mono)',
+            overflowX: isScaleMode ? 'auto' : 'hidden',
+            overflowY: 'hidden',
+            width: '100%',
+          }}
+        >
+          {/* Label */}
+          <span
+            style={{
+              fontSize: '9px',
+              fontWeight: 900,
+              color: '#FF7A65',
+              letterSpacing: '1px',
+              marginRight: '4px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            🗺️ SCALE LAB
+          </span>
+
+          <span style={{ color: '#2a2020', fontSize: '10px' }}>|</span>
+
+          {/* Root Note Selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '9px', color: '#6a5f5f', fontWeight: 700 }}>ROOT</span>
+            <select
+              id="scale-root-select"
+              value={scaleRoot}
+              onChange={(e) => handleScaleConfigChange(parseInt(e.target.value, 10), scaleId)}
+              style={{
+                backgroundColor: '#1d1717',
+                color: '#FF7A65',
+                border: '1px solid #362c2c',
+                borderRadius: '4px',
+                padding: '2px 6px',
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 800,
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              {ROOT_NOTES.map((r) => (
+                <option key={r.pitchClass} value={r.pitchClass}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Scale Type Selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '9px', color: '#6a5f5f', fontWeight: 700 }}>SCALE</span>
+            <select
+              id="scale-type-select"
+              value={scaleId}
+              onChange={(e) => handleScaleConfigChange(scaleRoot, e.target.value)}
+              style={{
+                backgroundColor: '#1d1717',
+                color: '#f0ecec',
+                border: '1px solid #362c2c',
+                borderRadius: '4px',
+                padding: '2px 6px',
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              {SCALE_DEFINITIONS.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <span style={{ color: '#2a2020', fontSize: '10px' }}>|</span>
+
+          {/* Position / Box Selector (Segmented Pill Cluster) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <span style={{ fontSize: '9px', color: '#6a5f5f', fontWeight: 700, marginRight: '2px' }}>POSISI</span>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                backgroundColor: '#1d1717',
+                border: '1px solid #362c2c',
+                borderRadius: '4px',
+                padding: '1px',
+                gap: '1px',
+              }}
+            >
+              {SCALE_POSITION_OPTIONS.map((opt) => {
+                const isSelected = scalePosition === opt.value;
+                const labelShort = opt.value === 'all' ? 'ALL' : `${opt.value}`;
+                return (
+                  <button
+                    key={opt.value}
+                    id={`scale-pos-btn-${opt.value}`}
+                    onClick={() => setScalePosition(opt.value)}
+                    title={opt.label}
+                    style={{
+                      backgroundColor: isSelected ? '#8be9fd' : 'transparent',
+                      color: isSelected ? '#120e0e' : '#a89d9d',
+                      border: 'none',
+                      borderRadius: '3px',
+                      padding: '2px 7px',
+                      fontSize: '9.5px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: isSelected ? 900 : 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {labelShort}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <span style={{ color: '#2a2020', fontSize: '10px' }}>|</span>
+
+          {/* Degrees / Note Names Toggle */}
+          <button
+            onClick={handleToggleDisplayMode}
+            title="Toggle antara Scale Degrees (R, ♭3, 5) dan Nama Not (A, C, D...)"
+            style={{
+              backgroundColor: '#1d1717',
+              color: scaleDisplayMode === 'degrees' ? '#f1fa8c' : '#8be9fd',
+              border: '1px solid #362c2c',
+              borderRadius: '4px',
+              padding: '3px 8px',
+              fontSize: '9.5px',
+              fontWeight: 800,
+              fontFamily: 'var(--font-mono)',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {scaleDisplayMode === 'degrees' ? 'DEG (R, ♭3, 5)' : 'NOTE (A, C, D)'}
+          </button>
+
+          {/* Backing Track Info Pill */}
+          {backingProgressionName && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                backgroundColor: 'rgba(255, 122, 101, 0.08)',
+                border: '1px solid rgba(255, 122, 101, 0.25)',
+                borderRadius: '4px',
+                padding: '2px 8px',
+                fontSize: '9px',
+                color: '#ffb86c',
+                fontWeight: 700,
+                whiteSpace: 'nowrap',
+                marginLeft: '4px',
+              }}
+              title={`Active Backing Track: ${backingProgressionName}`}
+            >
+              <span>🎵</span>
+              <span
+                style={{
+                  maxWidth: '200px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {backingProgressionName}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Right Scroll Indicator Arrow / Gradient */}
+        {isScaleMode && scaleLabCanScrollRight && (
+          <button
+            onClick={() => scaleLabBarRef.current?.scrollBy({ left: 140, behavior: 'smooth' })}
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: '32px',
+              background: 'linear-gradient(to left, #161212 55%, rgba(22, 18, 18, 0))',
+              border: 'none',
+              zIndex: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              paddingRight: '6px',
+              color: '#FF7A65',
+              fontSize: '14px',
+              fontWeight: 900,
+              cursor: 'pointer',
+              outline: 'none',
+              boxShadow: '-2px 0 8px rgba(0,0,0,0.5)',
+            }}
+            title="Scroll ke kanan (opsi Scale Lab lainnya)"
+          >
+            ›
+          </button>
+        )}
+      </div>
 
       {/* 3. Main Stage: String Flow Highway & Flat Fretboard 2D */}
       <div
@@ -698,6 +1123,36 @@ export const App: React.FC = () => {
           position: 'relative',
         }}
       >
+        {/* Speed Trainer Floating HUD Notification */}
+        {speedTrainerNotification && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '12px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: 'rgba(22, 16, 16, 0.94)',
+              border: '1.5px solid #ffb86c',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.6), 0 0 16px rgba(255, 184, 108, 0.4)',
+              borderRadius: '6px',
+              padding: '7px 18px',
+              color: '#ffb86c',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '11.5px',
+              fontWeight: 800,
+              letterSpacing: '0.6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              zIndex: 60,
+              pointerEvents: 'none',
+              animation: 'modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            <span style={{ fontSize: '14px' }}>⚡</span>
+            <span>{speedTrainerNotification}</span>
+          </div>
+        )}
         {/* Upper Panel: Horizontal Scrolling Highway (Hidden during Scale Practice to remove duplicate) */}
         {!isScaleMode && (
           <div style={{ flex: 1, minHeight: '200px', display: 'flex' }}>
@@ -737,10 +1192,6 @@ export const App: React.FC = () => {
             scaleId={scaleId}
             scaleDisplayMode={scaleDisplayMode}
             scalePosition={scalePosition}
-            onScaleChange={handleScaleConfigChange}
-            onScalePositionChange={setScalePosition}
-            onToggleScaleMode={handleToggleScaleMode}
-            onToggleDisplayMode={handleToggleDisplayMode}
             backingProgressionName={backingProgressionName}
           />
         </div>
@@ -920,8 +1371,19 @@ export const App: React.FC = () => {
           countInBeat={countInBeat}
           transpose={transpose}
           onTransposeChange={handleTransposeChange}
+          isSpeedTrainer={isSpeedTrainer}
+          onToggleSpeedTrainer={handleToggleSpeedTrainer}
+          speedTrainerStep={speedTrainerStep}
+          speedTrainerTarget={speedTrainerTarget}
+          speedTrainerLoopCount={speedTrainerLoopCount}
         />
       </div>
+
+      {/* 5. Keyboard Shortcuts Cheat Sheet Modal */}
+      <KeyboardShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
+      />
     </div>
   );
 };

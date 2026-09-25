@@ -14,6 +14,9 @@ interface TopNavProps {
   onSelectPreset: (presetId: string) => void;
   onFileUpload: (file: File) => void;
   transpose?: number;
+  isScaleMode?: boolean;
+  onToggleScaleMode?: () => void;
+  onOpenShortcuts?: () => void;
 }
 
 export const TopNav: React.FC<TopNavProps> = ({
@@ -27,6 +30,9 @@ export const TopNav: React.FC<TopNavProps> = ({
   onSelectPreset,
   onFileUpload,
   transpose = 0,
+  isScaleMode = false,
+  onToggleScaleMode,
+  onOpenShortcuts,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -132,7 +138,11 @@ export const TopNav: React.FC<TopNavProps> = ({
               letterSpacing: '0.5px',
               color: '#ffffff',
               whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: '380px',
             }}
+            title={`${songArtist} \\ ${songTitle}`}
           >
             {songArtist.toUpperCase()} <span style={{ color: '#FF7A65' }}>\\</span> {songTitle.toUpperCase()}
           </h1>
@@ -142,6 +152,7 @@ export const TopNav: React.FC<TopNavProps> = ({
             <select
               value={selectedPresetId}
               onChange={(e) => onSelectPreset(e.target.value)}
+              className="studio-btn-base"
               style={{
                 appearance: 'none',
                 backgroundColor: '#1d1717',
@@ -186,6 +197,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           />
           <button
             onClick={() => fileInputRef.current?.click()}
+            className="studio-btn-base"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -199,12 +211,76 @@ export const TopNav: React.FC<TopNavProps> = ({
               fontWeight: 700,
               fontFamily: 'var(--font-mono)',
               cursor: 'pointer',
-              transition: 'all 0.15s ease',
             }}
             title="Buka file Guitar Pro (.gp, .gp5, .gpx)"
           >
             <Upload size={12} />
             <span>BUKA .GP</span>
+          </button>
+
+          {/* Keyboard Shortcuts Help Button */}
+          {onOpenShortcuts && (
+            <button
+              onClick={onOpenShortcuts}
+              className="studio-btn-base"
+              title="Daftar Keyboard Shortcuts (Tekan '?')"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '4px 9px',
+                borderRadius: '4px',
+                border: '1px solid #3d3232',
+                backgroundColor: '#1d1717',
+                color: '#d4c7c7',
+                fontSize: '11px',
+                fontWeight: 700,
+                fontFamily: 'var(--font-mono)',
+                cursor: 'pointer',
+              }}
+            >
+              <span>⌨️</span>
+              <span>SHORTCUTS</span>
+              <span
+                style={{
+                  fontSize: '9px',
+                  fontWeight: 900,
+                  color: '#FF7A65',
+                  backgroundColor: 'rgba(255, 122, 101, 0.15)',
+                  border: '1px solid rgba(255, 122, 101, 0.3)',
+                  borderRadius: '3px',
+                  padding: '0 4px',
+                  lineHeight: '13px',
+                }}
+              >
+                ?
+              </span>
+            </button>
+          )}
+
+          {/* Scale Lab Toggle Button */}
+          <button
+            onClick={onToggleScaleMode}
+            className={isScaleMode ? 'studio-btn-coral' : 'scale-lab-btn-off'}
+            title="Toggle Scale Lab — Tampilkan roadmap tangga nada di fretboard (Key: S)"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '4px 10px',
+              borderRadius: '4px',
+              border: isScaleMode ? '1px solid #FF7A65' : '1px solid #3d3232',
+              backgroundColor: isScaleMode ? '#FF7A65' : '#1d1717',
+              color: isScaleMode ? '#120e0e' : '#a89d9d',
+              fontSize: '11px',
+              fontWeight: 800,
+              fontFamily: 'var(--font-mono)',
+              cursor: 'pointer',
+              boxShadow: isScaleMode ? '0 0 10px rgba(255, 122, 101, 0.4)' : 'none',
+            }}
+          >
+            <span>🗺️</span>
+            <span>SCALE LAB</span>
           </button>
         </div>
       </div>
