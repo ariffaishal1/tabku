@@ -5,7 +5,6 @@ import {
   SCALE_DEFINITIONS,
   checkNoteInScale,
   type ScaleDisplayMode,
-  SCALE_POSITION_OPTIONS,
   getScalePositionInfo,
 } from '../../services/scaleTheory';
 

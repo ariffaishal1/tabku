@@ -78,19 +78,36 @@ tabku/
 │   │   ├── Header/
 │   │   │   ├── TopNav.tsx             # Header studio & Kartu Tuning Coral Red
 │   │   │   └── TrackSelector.tsx      # Multi-track switcher (Lead, Rhythm, Bass)
+│   │   ├── Modals/
+│   │   │   └── KeyboardShortcutsModal.tsx # Modal cheat sheet keyboard shortcuts
+│   │   ├── Overlays/
+│   │   │   ├── CountInOverlay.tsx      # HUD overlay visual count-in (1-2-3-4)
+│   │   │   └── SpeedTrainerHUD.tsx     # Floating notifikasi speed trainer
 │   │   ├── Player/
 │   │   │   └── AlphaTabSheet.tsx      # Engine AlphaTab, sintesis audio, parser event
+│   │   ├── ScaleLab/
+│   │   │   └── ScaleLabBar.tsx        # Kontrol bar Scale Lab (root, scale, posisi)
 │   │   ├── StringFlow/
 │   │   │   └── StringFlowHighway.tsx  # Canvas scrolling highway not 3.0 detik
 │   │   └── Telemetry/
-│   │       └── TelemetryBar.tsx       # 3 kartu telemetri & kontrol pemutar studio
+│   │       └── TelemetryBar.tsx       # Kontrol transport DAW & info telemetri
+│   ├── hooks/
+│   │   ├── usePlayback.ts             # State playback: play/pause, speed, volume, seek
+│   │   ├── useMetronome.ts            # Click track, count-in, penjadwalan beat RAF
+│   │   ├── useABLoop.ts               # A-B range looper, deteksi batas otomatis
+│   │   ├── useSpeedTrainer.ts         # Peningkatan tempo bertahap per siklus loop
+│   │   └── useScaleLab.ts             # Scale overlay, root/type/posisi, backing track
 │   ├── services/
 │   │   ├── chordDetector.ts           # Deteksi nama akord otomatis dari nada aktif
+│   │   ├── metronome.ts               # Service Web Audio API untuk klik metronom
 │   │   ├── presetTabs.ts              # Bank data lagu multi-instrumen (Lead + Rhythm + Bass)
+│   │   ├── scaleTheory.ts             # Teori skala, tangga nada, backing track generator
 │   │   └── timelineExtractor.ts       # Ekstraksi timeline beat, durasi ms, dan not AlphaTab
+│   ├── types/
+│   │   └── guitar.ts                  # Interface TabNote, TrackInfo, ActiveChord, dll.
 │   ├── utils/
-│   │   └── guitarMath.ts              # Konversi MIDI, estimasi jari, format waktu mm:ss
-│   ├── App.tsx                        # Root orchestrator & loop sinkronisasi audio 60fps
+│   │   └── guitarMath.ts              # Konversi MIDI, estimasi jari, transpose, format waktu
+│   ├── App.tsx                        # Orchestrator tipis (~600 baris), menghubungkan hooks
 │   └── index.css                      # Tema warna obsidian (#120e0e) & coral red (#FF7A65)
 ```
 
@@ -100,48 +117,29 @@ tabku/
 
 Berdasarkan pencapaian v2.0, berikut adalah daftar kebutuhan fungsional dan teknis untuk iterasi berikutnya yang diprioritaskan:
 
-### Prioritas 1 (High Priority): Fitur Latihan & Ergonomi Pemain
+### ✅ Prioritas 1 (SELESAI): Fitur Latihan & Ergonomi Pemain
 
-#### FR-NEXT-01: A-B Looper Interaktif (Range Looping)
-* **Kebutuhan:** Pengguna dapat menentukan titik awal (Marker A) dan titik akhir (Marker B) pada lagu untuk melatih birama tertentu secara berulang tanpa harus mengulang lagu dari awal.
-* **Acceptance Criteria:**
-  - Pengguna dapat mengklik birama pada seekbar atau menekan tombol shortcut `[` (set A) dan `]` (set B).
-  - Saat lagu mencapai titik B, pemutar otomatis melompat kembali ke titik A secara instan dan tanpa jeda audio.
-  - Penanda rentang A-B terlihat jelas dengan bayangan warna Coral Red pada seekbar dan highway.
+#### FR-NEXT-01: A-B Looper Interaktif (Range Looping) — ✅ DONE
+* Shortcut `[` (set A) dan `]` (set B), auto-seek, bayangan Coral Red pada seekbar dan highway.
 
-#### FR-NEXT-02: Opsi Pembalik Senar ("Flip Strings / Player POV")
-* **Kebutuhan:** Menambahkan tombol toggle di pengaturan untuk membalik urutan senar (Senar 6 di atas, Senar 1 di bawah) bagi gitaris yang lebih nyaman dengan sudut pandang fisik leher gitar (*Player POV*).
-* **Acceptance Criteria:**
-  - Terdapat tombol `FLIP STRINGS` pada toolbar atau telemetri.
-  - Saat diaktifkan, String Flow Highway dan Fretboard 2D secara serentak membalik urutan senar secara instan tanpa menghentikan pemutaran lagu.
+#### FR-NEXT-02: Opsi Pembalik Senar ("Flip Strings / Player POV") — ✅ DONE
+* Toggle `FLIP STRINGS` pada transport bar, membalik Highway dan Fretboard secara instan.
 
-#### FR-NEXT-03: Metronome Click Track & Count-In
-* **Kebutuhan:** Menyediakan ketukan metronom audio (*click track*) yang dapat diaktifkan saat latihan, serta fitur hitungan awal (*Count-In* 1-2-3-4 birama) sebelum lagu mulai berputar.
-* **Acceptance Criteria:**
-  - Tombol toggle metronom pada kontrol pemutar dengan pengatur volume klik tersendiri.
-  - Opsi *Count-In* 1 birama sebelum playback dimulai agar pengguna sempat memposisikan tangan pada instrumen fisik.
+#### FR-NEXT-03: Metronome Click Track & Count-In — ✅ DONE
+* Toggle metronom + volume terpisah, Count-In 1 birama dengan HUD visual, shortcut `M`.
 
 ---
 
-### Prioritas 2 (Medium Priority): Teori Musik & Visual Guide Lanjutan
+### ✅ Prioritas 2 (SELESAI): Teori Musik & Visual Guide Lanjutan
 
-#### FR-NEXT-04: Transpose & Virtual Pitch Shifter
-* **Kebutuhan:** Memungkinkan pengguna mengubah tangga nada (misalnya menaikkan/menurunkan 1/2 nada atau 1 nada penuh) agar sesuai dengan instrumen yang sedang dipegang tanpa perlu menyetel ulang gitar fisik.
-* **Acceptance Criteria:**
-  - Tombol kontrol transpose (-12 hingga +12 semitone).
-  - Audio dan tampilan not pada tab/highway bergeser secara sinkron sesuai jumlah semitone yang dipilih.
+#### FR-NEXT-04: Transpose & Virtual Pitch Shifter — ✅ DONE
+* Kontrol -12 hingga +12 semitone, audio dan visual bergeser sinkron, shortcut `Shift+↑/↓`.
 
-#### FR-NEXT-05: Fretboard Scale & Chord Roadmap Overlay
-* **Kebutuhan:** Fitur untuk menampilkan pola tangga nada (misal: *Minor Pentatonic*, *Major Scale*, *Blues Scale*) sebagai titik-titik transparan di latar belakang Fretboard 2D.
-* **Acceptance Criteria:**
-  - Menu pemilih skala: root note (A, C, D, dsb.) dan jenis skala (Pentatonic, Diatonic, Blues).
-  - Titik-titik fretboard yang termasuk dalam skala menyala redup (*ghost dots*), membantu pemain memahami konteks solo dan melatih improvisasi.
+#### FR-NEXT-05: Fretboard Scale & Chord Roadmap Overlay — ✅ DONE
+* Scale Lab dengan pemilih root/scale/posisi, degree & note name toggle, backing track generator.
 
-#### FR-NEXT-06: Speed Trainer (Peningkatan Tempo Bertahap)
-* **Kebutuhan:** Mode latihan otomatis di mana setiap kali satu siklus loop selesai, tempo lagu meningkat secara bertahap (misal: naik 5% setiap putaran, mulai dari 50% hingga 100%).
-* **Acceptance Criteria:**
-  - Opsi aktivasi *Speed Trainer* pada mode loop.
-  - Tempo naik secara otomatis dan mulus di akhir birama loop tanpa distorsi audio.
+#### FR-NEXT-06: Speed Trainer (Peningkatan Tempo Bertahap) — ✅ DONE
+* Auto-increment +5%/loop dari 50% ke 100%, notifikasi HUD floating, shortcut `T`.
 
 ---
 
@@ -176,8 +174,11 @@ Berdasarkan pencapaian v2.0, berikut adalah daftar kebutuhan fungsional dan tekn
 
 ```
 [SELESAI]  Fase 1: Implementasi 2D String Flow + Flat Fretboard + Telemetri + AlphaTab Audio
-[BERIKUTNYA] Fase 2: Implementasi A-B Looper + Flip Strings Toggle + Count-In Metronome
-[MENDATANG]  Fase 3: Scale Map Overlay + Virtual Pitch Shifter + Mic Interactive Pitch Detection
+[SELESAI]  Fase 2: A-B Looper + Flip Strings + Count-In Metronome + Keyboard Shortcuts Modal
+[SELESAI]  Fase 3: Transpose + Scale Map Overlay + Speed Trainer
+[SELESAI]  Refactor: Dekomposisi App.tsx ke 5 custom hooks + 3 komponen UI terpisah
+[BERIKUTNYA] Fase 4: Mic Interactive Pitch Detection (FR-NEXT-07)
+[MENDATANG]  Fase 5: Responsivitas Tablet + Custom Themes (FR-NEXT-08)
 ```
 
 Dokumen ini menjadi acuan utama pengembangan teknis dan penambahan fitur lanjutan untuk proyek **TabKu**.
