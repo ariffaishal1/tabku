@@ -15,6 +15,7 @@ interface StringFlowHighwayProps {
   loopAMs?: number;
   loopBMs?: number;
   isFlipped?: boolean;
+  speed?: number;
 
   // Scale Mode props (FR-NEXT-05)
   isScaleMode?: boolean;
@@ -36,6 +37,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
   loopAMs,
   loopBMs,
   isFlipped = false,
+  speed = 1.0,
   isScaleMode = false,
   scaleRoot = 9,
   scaleId = 'minor_pentatonic',
@@ -179,7 +181,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
         }
       }
 
-      // Time ticks (+0.5s, +1.0s, +1.5s, +2.0s, +2.5s, +3.0s)
+      // Time ticks (+0.5s, +1.0s, +1.5s, +2.0s, +2.5s, +3.0s) calibrated to playback speed
       const timeTicks = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0];
       timeTicks.forEach((t) => {
         const tickX = STRIKE_X + (t / 3.0) * highwayWidth;
@@ -198,7 +200,9 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
             ctx.font = '700 8px "JetBrains Mono", monospace';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(`+${t.toFixed(1)}s`, tickX, 20);
+            const realSeconds = speed > 0 ? t / speed : t;
+            const label = speed === 1.0 ? `+${t.toFixed(1)}s` : `+${realSeconds.toFixed(1)}s`;
+            ctx.fillText(label, tickX, 20);
           }
         }
       });

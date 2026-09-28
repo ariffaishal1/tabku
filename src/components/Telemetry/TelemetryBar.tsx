@@ -789,6 +789,7 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
           {/* Stop button */}
           <button
             onClick={onStop}
+            className="studio-btn-base"
             style={{
               padding: '8px',
               borderRadius: '4px',
@@ -800,7 +801,7 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            title="Hentikan & Reset"
+            title="Hentikan & Reset ke Awal"
           >
             <Square size={14} />
           </button>
@@ -808,6 +809,7 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
           {/* Big Play/Pause Button */}
           <button
             onClick={onPlayPause}
+            className={!isPlaying && !isCountingIn ? 'studio-btn-coral studio-play-pulse' : 'studio-btn-coral'}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -826,7 +828,7 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                 : '0 0 16px rgba(255, 122, 101, 0.4)',
               transition: 'all 0.15s ease',
             }}
-            title={isCountingIn ? 'Hitungan awal aktif... Klik untuk batal' : isPlaying ? 'Jeda Lagu (Space)' : 'Putar Lagu (Space)'}
+            title={isCountingIn ? 'Hitungan awal aktif... Klik untuk batal' : isPlaying ? 'Jeda Lagu [Spasi]' : 'Putar Lagu [Spasi]'}
           >
             {isCountingIn ? (
               <>

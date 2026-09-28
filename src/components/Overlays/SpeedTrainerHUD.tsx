@@ -9,16 +9,18 @@ export const SpeedTrainerHUD: React.FC<SpeedTrainerHUDProps> = ({ notification }
 
   return (
     <div
+      className="toast-enter"
       style={{
         position: 'absolute',
-        top: '12px',
+        top: '14px',
         left: '50%',
         transform: 'translateX(-50%)',
-        backgroundColor: 'rgba(22, 16, 16, 0.94)',
+        backgroundColor: 'rgba(25, 18, 18, 0.95)',
+        backdropFilter: 'blur(8px)',
         border: '1.5px solid #ffb86c',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.6), 0 0 16px rgba(255, 184, 108, 0.4)',
-        borderRadius: '6px',
-        padding: '7px 18px',
+        boxShadow: '0 6px 24px rgba(0, 0, 0, 0.75), 0 0 20px rgba(255, 184, 108, 0.45)',
+        borderRadius: '20px',
+        padding: '6px 20px',
         color: '#ffb86c',
         fontFamily: 'var(--font-mono)',
         fontSize: '11.5px',
@@ -29,10 +31,10 @@ export const SpeedTrainerHUD: React.FC<SpeedTrainerHUDProps> = ({ notification }
         gap: '8px',
         zIndex: 60,
         pointerEvents: 'none',
-        animation: 'modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        whiteSpace: 'nowrap',
       }}
     >
-      <span style={{ fontSize: '14px' }}>⚡</span>
+      <span style={{ fontSize: '14px', display: 'flex', alignItems: 'center' }}>⚡</span>
       <span>{notification}</span>
     </div>
   );

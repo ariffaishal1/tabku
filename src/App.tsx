@@ -17,6 +17,8 @@ import { KeyboardShortcutsModal } from './components/Modals/KeyboardShortcutsMod
 import { ScaleLabBar } from './components/ScaleLab/ScaleLabBar';
 import { CountInOverlay } from './components/Overlays/CountInOverlay';
 import { SpeedTrainerHUD } from './components/Overlays/SpeedTrainerHUD';
+import { SplashScreen } from './components/Overlays/SplashScreen';
+import { ToastContainer } from './components/Overlays/ToastNotification';
 
 // Custom hooks
 import { usePlayback } from './hooks/usePlayback';
@@ -24,6 +26,7 @@ import { useMetronome } from './hooks/useMetronome';
 import { useABLoop } from './hooks/useABLoop';
 import { useSpeedTrainer } from './hooks/useSpeedTrainer';
 import { useScaleLab } from './hooks/useScaleLab';
+import { useToast } from './hooks/useToast';
 
 export const App: React.FC = () => {
   const alphaTabRef = useRef<AlphaTabSheetRef>(null);
@@ -39,6 +42,16 @@ export const App: React.FC = () => {
   const [activeTrackIndex, setActiveTrackIndex] = useState(0);
   const [transpose, setTranspose] = useState(0);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+
+  // Audio Engine & Loading States
+  const [isEngineLoading, setIsEngineLoading] = useState(true);
+  const [soundFontProgress, setSoundFontProgress] = useState(15);
+  const [soundFontStatus, setSoundFontStatus] = useState('Mengunduh SoundFont Sonivox...');
+  const [soundFontError, setSoundFontError] = useState<string | null>(null);
+  const [isLoadingScore, setIsLoadingScore] = useState(false);
+
+  // Central Toast Notifier
+  const toast = useToast();
 
   // ──────────────────────────────────────────────
   // Custom Hooks
@@ -134,7 +147,12 @@ export const App: React.FC = () => {
     const clamped = Math.max(-12, Math.min(12, newTranspose));
     setTranspose(clamped);
     alphaTabRef.current?.setTranspose(clamped);
-  }, []);
+    if (clamped !== 0) {
+      toast.showInfo('Pitch Shifter', `${clamped > 0 ? '+' : ''}${clamped} Semitone`);
+    } else {
+      toast.showInfo('Pitch Shifter', 'Kembali ke nada asli (0 st)');
+    }
+  }, [toast]);
 
   const handleScaleConfigChange = useCallback((newRoot: number, newScaleId: string) => {
     const backing = scaleLab.updateScaleConfig(newRoot, newScaleId);
@@ -162,6 +180,7 @@ export const App: React.FC = () => {
     setTimeline(null);
     playback.resetSync();
     met.resetLastScheduledBeat();
+    toast.showSuccess('Preset Dimuat', `${preset.title} · ${preset.artist}`);
 
     if (presetId === 'scale-practice-empty') {
       scaleLab.setIsScaleMode(true);
@@ -175,6 +194,17 @@ export const App: React.FC = () => {
   };
 
   const handleFileUpload = (file: File) => {
+    const validExtensions = ['.gp', '.gp5', '.gpx', '.gp4', '.gp3'];
+    const lowerName = file.name.toLowerCase();
+    const isValid = validExtensions.some((ext) => lowerName.endsWith(ext));
+    if (!isValid) {
+      toast.showError(
+        'Format Berkas Tidak Didukung',
+        `Harap pilih berkas Guitar Pro (${validExtensions.join(', ')}).`
+      );
+      return;
+    }
+
     met.cancelCountIn();
     abLoop.clearABLoop();
     setTranspose(0);
@@ -183,6 +213,7 @@ export const App: React.FC = () => {
     setTimeline(null);
     playback.resetSync();
     met.resetLastScheduledBeat();
+    toast.showInfo('Membaca Tab', file.name);
     alphaTabRef.current?.loadFile(file);
   };
 
@@ -401,6 +432,7 @@ export const App: React.FC = () => {
         isScaleMode={scaleLab.isScaleMode}
         onToggleScaleMode={scaleLab.toggleScaleMode}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
+        isLoadingScore={isLoadingScore}
       />
 
       {/* 2. Multi-Instrument Track Flow Switcher */}
@@ -458,6 +490,7 @@ export const App: React.FC = () => {
               loopAMs={abLoop.loopA !== null ? abLoop.loopA * 1000 : undefined}
               loopBMs={abLoop.loopB !== null ? abLoop.loopB * 1000 : undefined}
               isFlipped={playback.isFlipped}
+              speed={playback.speed}
               isScaleMode={scaleLab.isScaleMode}
               scaleRoot={scaleLab.scaleRoot}
               scaleId={scaleLab.scaleId}
@@ -529,6 +562,30 @@ export const App: React.FC = () => {
         }}
         onPlayerStateChange={playback.setIsPlaying}
         isExpanded={playback.isSheetExpanded}
+        onSoundFontProgress={(loaded, total) => {
+          const pct = total > 0 ? (loaded / total) * 100 : 0;
+          setSoundFontProgress(pct);
+          setSoundFontStatus(`Mengunduh SoundFont Sonivox (${(loaded / 1024 / 1024).toFixed(1)} MB)...`);
+        }}
+        onSoundFontLoaded={() => {
+          setSoundFontProgress(100);
+          setSoundFontStatus('Menyiapkan AlphaSynth Audio Engine...');
+        }}
+        onPlayerReady={() => {
+          setSoundFontStatus('Siap Bermain!');
+          setIsEngineLoading(false);
+        }}
+        onError={(err) => {
+          setSoundFontError(err);
+          toast.showError('Sistem Error', err);
+          setIsLoadingScore(false);
+        }}
+        onScoreLoading={() => {
+          setIsLoadingScore(true);
+        }}
+        onScoreLoaded={() => {
+          setIsLoadingScore(false);
+        }}
       />
 
       {/* 5. Studio Telemetry & Transport Bar */}
@@ -589,6 +646,22 @@ export const App: React.FC = () => {
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
       />
+
+      {/* 7. Splash Loading Screen for Initial Audio/SoundFont Engine */}
+      <SplashScreen
+        isLoading={isEngineLoading}
+        progress={soundFontProgress}
+        statusText={soundFontStatus}
+        error={soundFontError}
+        onRetry={() => {
+          setSoundFontError(null);
+          setIsEngineLoading(true);
+          window.location.reload();
+        }}
+      />
+
+      {/* 8. Global Studio Toast Notifications */}
+      <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
     </div>
   );
 };

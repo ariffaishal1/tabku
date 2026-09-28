@@ -35,6 +35,11 @@ export function usePlayback(alphaTabRef: React.RefObject<AlphaTabSheetRef | null
   const changeSpeed = useCallback((newSpeed: number) => {
     setSpeed(newSpeed);
     speedRef.current = newSpeed;
+    // Immediately resync wallTime reference at current score time
+    lastSyncRef.current = {
+      audioMs: currentTimeMsRef.current,
+      wallTime: performance.now(),
+    };
     alphaTabRef.current?.setSpeed(newSpeed);
     if (newSpeed === 1.0) setIsSoloSlowdown(false);
   }, [alphaTabRef]);

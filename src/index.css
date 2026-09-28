@@ -1,3 +1,5 @@
+@import './App.css';
+
 :root {
   /* Develop Device Studio Palette: Warm Dark Charcoal / Obsidian with Coral Red */
   --bg-primary: #120e0e;

@@ -59,6 +59,7 @@ export const TrackSelector: React.FC<TrackSelectorProps> = ({
             <div
               key={track.index}
               onClick={() => onSelectTrack(track.index)}
+              className="studio-btn-base"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -67,6 +68,7 @@ export const TrackSelector: React.FC<TrackSelectorProps> = ({
                 borderRadius: '4px',
                 border: `1px solid ${isActive ? '#FF7A65' : '#302626'}`,
                 backgroundColor: isActive ? 'rgba(255, 122, 101, 0.15)' : '#1e1818',
+                boxShadow: isActive ? '0 0 12px rgba(255, 122, 101, 0.25)' : 'none',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}

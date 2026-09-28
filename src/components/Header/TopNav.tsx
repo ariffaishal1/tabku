@@ -17,6 +17,7 @@ interface TopNavProps {
   isScaleMode?: boolean;
   onToggleScaleMode?: () => void;
   onOpenShortcuts?: () => void;
+  isLoadingScore?: boolean;
 }
 
 export const TopNav: React.FC<TopNavProps> = ({
@@ -33,6 +34,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   isScaleMode = false,
   onToggleScaleMode,
   onOpenShortcuts,
+  isLoadingScore = false,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -214,8 +216,12 @@ export const TopNav: React.FC<TopNavProps> = ({
             }}
             title="Buka file Guitar Pro (.gp, .gp5, .gpx)"
           >
-            <Upload size={12} />
-            <span>BUKA .GP</span>
+            {isLoadingScore ? (
+              <span className="spin-anim" style={{ display: 'inline-block', fontSize: '11px' }}>⚙️</span>
+            ) : (
+              <Upload size={12} />
+            )}
+            <span>{isLoadingScore ? 'MEMUAT...' : 'BUKA .GP'}</span>
           </button>
 
           {/* Keyboard Shortcuts Help Button */}

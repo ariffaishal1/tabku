@@ -32,6 +32,12 @@ interface AlphaTabSheetProps {
   onTimelineLoaded?: (timeline: SongTimeline) => void;
   onPlayerStateChange: (isPlaying: boolean) => void;
   isExpanded: boolean;
+  onSoundFontProgress?: (loaded: number, total: number) => void;
+  onSoundFontLoaded?: () => void;
+  onPlayerReady?: () => void;
+  onError?: (error: string) => void;
+  onScoreLoading?: () => void;
+  onScoreLoaded?: () => void;
 }
 
 export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
@@ -46,6 +52,12 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
   onTimelineLoaded,
   onPlayerStateChange,
   isExpanded,
+  onSoundFontProgress,
+  onSoundFontLoaded,
+  onPlayerReady,
+  onError,
+  onScoreLoading,
+  onScoreLoaded,
 }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
@@ -61,6 +73,12 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
     onCurrentTimeMsChange,
     onTimelineLoaded,
     onPlayerStateChange,
+    onSoundFontProgress,
+    onSoundFontLoaded,
+    onPlayerReady,
+    onError,
+    onScoreLoading,
+    onScoreLoaded,
   });
 
   useEffect(() => {
@@ -73,6 +91,12 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
       onCurrentTimeMsChange,
       onTimelineLoaded,
       onPlayerStateChange,
+      onSoundFontProgress,
+      onSoundFontLoaded,
+      onPlayerReady,
+      onError,
+      onScoreLoading,
+      onScoreLoaded,
     };
   });
 
@@ -107,7 +131,9 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
     },
     seek: (seconds: number) => {
       if (apiRef.current) {
-        apiRef.current.timePosition = seconds * 1000;
+        const currentSpeed = apiRef.current.playbackSpeed || 1.0;
+        // AlphaTab's internal timePosition represents audio time: scoreTime / playbackSpeed
+        apiRef.current.timePosition = (seconds * 1000) / currentSpeed;
       }
     },
     setVolume: (vol: number) => {
@@ -155,13 +181,19 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
     },
     loadTex: (tex: string) => {
       if (apiRef.current) {
+        callbacksRef.current.onScoreLoading?.();
         apiRef.current.tex(tex);
       }
     },
     loadFile: async (file: File) => {
       if (apiRef.current) {
-        const buffer = await file.arrayBuffer();
-        apiRef.current.load(new Uint8Array(buffer));
+        try {
+          callbacksRef.current.onScoreLoading?.();
+          const buffer = await file.arrayBuffer();
+          apiRef.current.load(new Uint8Array(buffer));
+        } catch (err: any) {
+          callbacksRef.current.onError?.(err?.message || 'Gagal membaca berkas Guitar Pro.');
+        }
       }
     },
     toggleMute: (trackIndex: number) => {
@@ -252,6 +284,7 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
 
       const timeline = extractSongTimeline(score, initialActiveIndex, transposeRef.current);
       callbacksRef.current.onTimelineLoaded?.(timeline);
+      callbacksRef.current.onScoreLoaded?.();
     });
 
     // 2. Played Beat Changed Event (Core sync between Audio/Notation and 3D Fretboard)
@@ -384,10 +417,16 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
 
     // 3. Player Position Changed Event
     api.playerPositionChanged.on((args) => {
-      const currentSec = args.currentTime / 1000;
-      const totalSec = args.endTime / 1000;
+      const currentSpeed = api.playbackSpeed || 1.0;
+      // AlphaTab args.currentTime and args.endTime are in audio time (scaled by 1 / playbackSpeed).
+      // Convert to canonical score time so visualizers, timeline, and HUD stay in exact sync at any speed.
+      const scoreTimeMs = args.currentTime * currentSpeed;
+      const scoreTotalMs = args.endTime * currentSpeed;
+
+      const currentSec = scoreTimeMs / 1000;
+      const totalSec = scoreTotalMs / 1000;
       callbacksRef.current.onPlayerPositionChange(currentSec, totalSec);
-      callbacksRef.current.onCurrentTimeMsChange?.(args.currentTime);
+      callbacksRef.current.onCurrentTimeMsChange?.(scoreTimeMs);
     });
 
     // 4. Player State Changed Event
@@ -395,17 +434,29 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
       callbacksRef.current.onPlayerStateChange(args.state === 1); // 1 = Playing
     });
 
-    // 5. SoundFont & Player Ready Events
+    // 5. SoundFont, Player Ready & Error Events
+    api.soundFontLoad.on((e) => {
+      callbacksRef.current.onSoundFontProgress?.(e.loaded, e.total);
+    });
+
     api.soundFontLoaded.on(() => {
       console.log('[AlphaTab] SoundFont loaded');
+      callbacksRef.current.onSoundFontLoaded?.();
     });
 
     api.playerReady.on(() => {
       console.log('[AlphaTab] Player ready');
+      callbacksRef.current.onPlayerReady?.();
+    });
+
+    api.error.on((err) => {
+      console.error('[AlphaTab] AlphaTab Error:', err);
+      callbacksRef.current.onError?.(err?.message || 'Terjadi kesalahan sistem saat memproses partitur.');
     });
 
     api.midiLoaded.on((e) => {
-      callbacksRef.current.onPlayerPositionChange(0, e.endTime / 1000);
+      const currentSpeed = api.playbackSpeed || 1.0;
+      callbacksRef.current.onPlayerPositionChange(0, (e.endTime * currentSpeed) / 1000);
     });
 
     return () => {

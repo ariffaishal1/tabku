@@ -58,18 +58,20 @@ export const CountInOverlay: React.FC<CountInOverlayProps> = ({
           COUNT-IN · SIAPKAN PETIKAN
         </div>
 
-        {/* Big Pulsing Beat Number */}
+        {/* Big Pulsing Beat Number with Scale Bounce Animation */}
         <div
           key={countInBeat}
+          className="beat-pulse-anim"
           style={{
-            fontSize: '84px',
+            fontSize: '92px',
             fontWeight: 900,
             fontFamily: 'var(--font-mono)',
             color: countInBeat === 1 ? '#ffb86c' : '#ffffff',
             lineHeight: 1,
             textShadow: countInBeat === 1
-              ? '0 0 30px rgba(255, 184, 108, 0.9)'
-              : '0 0 20px rgba(255, 255, 255, 0.6)',
+              ? '0 0 35px rgba(255, 184, 108, 0.95), 0 0 60px rgba(255, 184, 108, 0.4)'
+              : '0 0 25px rgba(255, 255, 255, 0.75)',
+            transformOrigin: 'center center',
           }}
         >
           {countInBeat > 0 ? countInBeat : '...'}
