@@ -886,7 +886,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
   return () => {
     cancelAnimationFrame(animId);
   };
-}, [activeNotes, nextNotes, tuningNames, tuning, isPlaying, isFlipped, isScaleMode, scaleRoot, scaleId, scaleDisplayMode, scalePosition]);
+}, [activeNotes, nextNotes, tuningNames, tuning, isPlaying, isFlipped, isScaleMode, scaleRoot, scaleId, scaleDisplayMode, scalePosition, backingProgressionName, positionInfo]);
 
   return (
     <div

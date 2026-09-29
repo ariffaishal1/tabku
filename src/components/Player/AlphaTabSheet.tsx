@@ -463,6 +463,7 @@ export const AlphaTabSheet = forwardRef<AlphaTabSheetRef, AlphaTabSheetProps>(({
       api.destroy();
       apiRef.current = null;
     };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: this effect runs once to initialize AlphaTab; initialTex is a mount-time prop, subsequent updates use loadTex() imperatively
   }, []);
 
   return (

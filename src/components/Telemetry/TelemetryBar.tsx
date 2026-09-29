@@ -124,8 +124,10 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
 
   // Pulse state for A-B loop active indicator (glow/toggle animation during playback)
   const [loopPulseOn, setLoopPulseOn] = React.useState<boolean>(false);
+  // oxlint-disable-next-line react/set-state-in-effect -- intentional: synchronously reset pulse state when conditions change; the setInterval handles the ongoing animation
   React.useEffect(() => {
     if (!hasABLoop || !isPlaying) {
+      // oxlint-disable-next-line react/set-state-in-effect -- intentional: guard reset
       setLoopPulseOn(false);
       return;
     }

@@ -28,6 +28,7 @@ export function useScaleLab(tempo: number) {
   // Responsive scroll detection
   useEffect(() => {
     if (!isScaleMode) {
+      // oxlint-disable-next-line react/set-state-in-effect -- intentional: reset scroll indicators when scale mode is disabled
       setScaleLabCanScrollLeft(false);
       setScaleLabCanScrollRight(false);
       return;

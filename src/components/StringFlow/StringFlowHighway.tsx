@@ -1004,7 +1004,8 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [timeline, currentTimeMs, activeNotes, tuningNames, isPlaying, loopAMs, loopBMs, isFlipped]);
+  }, [timeline, currentTimeMs, activeNotes, tuningNames, isPlaying, loopAMs, loopBMs, isFlipped, speed,
+      isScaleMode, scaleRoot, scaleId, scaleDisplayMode, tuning, backingProgressionName]);
 
   return (
     <div

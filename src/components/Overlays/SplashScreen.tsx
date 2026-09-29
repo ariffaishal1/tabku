@@ -19,8 +19,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   const [shouldRender, setShouldRender] = useState(true);
   const [isFadingOut, setIsFadingOut] = useState(false);
 
+  // oxlint-disable-next-line react/set-state-in-effect -- intentional: fade animation sequence
   useEffect(() => {
     if (!isLoading && !error) {
+      // oxlint-disable-next-line react/set-state-in-effect -- starts CSS transition immediately
       setIsFadingOut(true);
       const timer = setTimeout(() => {
         setShouldRender(false);

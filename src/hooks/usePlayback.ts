@@ -14,7 +14,8 @@ export function usePlayback(alphaTabRef: React.RefObject<AlphaTabSheetRef | null
   const [isFlipped, setIsFlipped] = useState(false);
 
   // Refs for high-frequency RAF access
-  const lastSyncRef = useRef({ audioMs: 0, wallTime: performance.now() });
+  // eslint-disable-next-line: use 0 as initial wallTime; it gets overwritten on the first sync event
+  const lastSyncRef = useRef<{ audioMs: number; wallTime: number }>({ audioMs: 0, wallTime: 0 });
   const currentTimeMsRef = useRef(0);
   const speedRef = useRef(1.0);
 
@@ -70,11 +71,17 @@ export function usePlayback(alphaTabRef: React.RefObject<AlphaTabSheetRef | null
     alphaTabRef.current?.setVolume(newVolume);
   }, [alphaTabRef]);
 
+  /** Sync current audio time from AlphaTab event. Encapsulates ref mutation. */
+  const syncTime = useCallback((audioMs: number) => {
+    lastSyncRef.current = { audioMs, wallTime: performance.now() };
+    setCurrentTimeMs(audioMs);
+  }, []);
+
   /** Reset sync point to 0 (used on stop / song change). */
   const resetSync = useCallback(() => {
     setCurrentTimeMs(0);
     currentTimeMsRef.current = 0;
-    lastSyncRef.current = { audioMs: 0, wallTime: performance.now() };
+    lastSyncRef.current = { audioMs: 0, wallTime: 0 };
   }, []);
 
   return {
@@ -91,6 +98,6 @@ export function usePlayback(alphaTabRef: React.RefObject<AlphaTabSheetRef | null
     // Refs
     lastSyncRef, currentTimeMsRef, speedRef,
     // Handlers
-    seek, changeSpeed, toggleSoloSlowdown, toggleLoop, changeVolume, resetSync,
+    seek, changeSpeed, toggleSoloSlowdown, toggleLoop, changeVolume, resetSync, syncTime,
   };
 }

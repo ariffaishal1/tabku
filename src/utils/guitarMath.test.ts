@@ -36,6 +36,8 @@ describe('guitarMath utilities', () => {
       expect(getMidiPitch(1, 12, standardTuning)).toBe(76);
       // 6th string (Low E) 3rd fret (G) = 43
       expect(getMidiPitch(6, 3, standardTuning)).toBe(43);
+      // Fallback if stringIndex out of range defaults baseTuning to 64
+      expect(getMidiPitch(10, 0, standardTuning)).toBe(64);
     });
   });
 
@@ -120,6 +122,29 @@ describe('guitarMath utilities', () => {
       expect(getTuningDescription([43, 38, 33, 28])).toBe('Standard Bass (E A D G)');
     });
 
+    it('identifies Half Step Down (Eb)', () => {
+      // D#4(63), A#3(58), F#3(54), C#3(49), G#2(44), D#2(39)
+      expect(getTuningDescription([63, 58, 54, 49, 44, 39])).toBe('Half Step Down (Eb)');
+    });
+
+    it('identifies Full Step Down (D)', () => {
+      // D4(62), A3(57), F3(53), C3(48), G2(43), D2(38)
+      expect(getTuningDescription([62, 57, 53, 48, 43, 38])).toBe('Full Step Down (D)');
+    });
+
+    it('identifies Double Drop D and DADGAD', () => {
+      // Double Drop D: D4(62), B3(59), G3(55), D3(50), A2(45), D2(38)
+      expect(getTuningDescription([62, 59, 55, 50, 45, 38])).toBe('Double Drop D');
+
+      // DADGAD: D4(62), A3(57), G3(55), D3(50), A2(45), D2(38)
+      expect(getTuningDescription([62, 57, 55, 50, 45, 38])).toBe('DADGAD');
+    });
+
+    it('returns Standard E fallback for empty array or null tuning', () => {
+      expect(getTuningDescription([])).toBe('Standard E');
+      expect(getTuningDescription(null as any)).toBe('Standard E');
+    });
+
     it('returns Custom for unknown tunings', () => {
       // D A D F# A D
       expect(getTuningDescription([62, 57, 54, 50, 45, 38])).toBe('Custom (D A D F# A D)');
@@ -167,6 +192,12 @@ describe('guitarMath utilities', () => {
     it('transposes slash chords', () => {
       expect(transposeChordName('D/F#', 2)).toBe('E/G#');
       expect(transposeChordName('C/G', -2)).toBe('A#/F'); // Simplification in scale mapping (A# instead of Bb)
+    });
+
+    it('returns original chord name if semitones is 0 or chordName is empty/invalid', () => {
+      expect(transposeChordName('Am', 0)).toBe('Am');
+      expect(transposeChordName('', 2)).toBe('');
+      expect(transposeChordName('1234', 2)).toBe('1234');
     });
   });
 
