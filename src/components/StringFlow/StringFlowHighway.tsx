@@ -3,6 +3,7 @@ import type { SongTimeline, ExtractedNote } from '../../services/timelineExtract
 import { getUpcomingHighwayBeats } from '../../services/timelineExtractor';
 import { ChordDiagram } from '../Telemetry/ChordDiagram';
 import { checkNoteInScale, ROOT_NOTES, SCALE_DEFINITIONS } from '../../services/scaleTheory';
+import type { CanvasThemeColors } from '../../types/theme';
 
 interface StringFlowHighwayProps {
   timeline: SongTimeline | null;
@@ -24,6 +25,9 @@ interface StringFlowHighwayProps {
   scaleDisplayMode?: 'degrees' | 'notes';
   tuning?: number[];
   backingProgressionName?: string;
+
+  // Custom Theme Palette (FR-NEXT-08)
+  canvasTheme?: CanvasThemeColors;
 }
 
 export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
@@ -44,6 +48,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
   scaleDisplayMode = 'degrees',
   tuning = [64, 59, 55, 50, 45, 40],
   backingProgressionName,
+  canvasTheme,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -57,8 +62,8 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
 
   // Active technique chip for single note
   let activeTechLabel: string | null = null;
-  let activeTechColor = '#FF7A65';
-  let activeTechBg = 'rgba(255, 122, 101, 0.15)';
+  let activeTechColor = canvasTheme?.nowIndicator || 'var(--accent-coral)';
+  let activeTechBg = canvasTheme?.nowGlow || 'var(--accent-coral-glow)';
 
   if (activeTechniqueTitle) {
     activeTechLabel = activeTechniqueTitle.toUpperCase();
@@ -130,7 +135,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
       ctx.scale(dpr, dpr);
 
       // 1. Dark Studio Background with subtle grid/vignette
-      ctx.fillStyle = '#120e0e';
+      ctx.fillStyle = canvasTheme?.background || '#120e0e';
       ctx.fillRect(0, 0, width, height);
 
       const numStrings = tuningNames.length > 0 ? tuningNames.length : 6;
@@ -157,7 +162,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
       ctx.beginPath();
       ctx.moveTo(0, 36);
       ctx.lineTo(width, 36);
-      ctx.strokeStyle = '#221a1a';
+      ctx.strokeStyle = canvasTheme?.fretboardBevel || '#221a1a';
       ctx.lineWidth = 1;
       ctx.stroke();
 
@@ -189,14 +194,14 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
           ctx.beginPath();
           ctx.moveTo(tickX, 30);
           ctx.lineTo(tickX, 36);
-          ctx.strokeStyle = '#382c2c';
+          ctx.strokeStyle = canvasTheme?.fretWire || '#382c2c';
           ctx.lineWidth = 1;
           ctx.stroke();
 
           // Only draw time text if not colliding with a bar badge (within 24px)
           const isNearBar = barStarts.some((b) => Math.abs(b.barX - tickX) < 24);
           if (!isNearBar) {
-            ctx.fillStyle = '#655656';
+            ctx.fillStyle = canvasTheme?.markerText || '#655656';
             ctx.font = '700 8px "JetBrains Mono", monospace';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -213,22 +218,22 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
         ctx.beginPath();
         ctx.moveTo(barX, 36);
         ctx.lineTo(barX, height - bottomPadding + 8);
-        ctx.strokeStyle = '#261e1e';
+        ctx.strokeStyle = canvasTheme?.measureBar || '#261e1e';
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 4]);
         ctx.stroke();
         ctx.setLineDash([]);
 
         // Sleek Bar badge in ruler strip
-        ctx.fillStyle = '#1c1616';
-        ctx.strokeStyle = '#382c2c';
+        ctx.fillStyle = canvasTheme?.stringLabelBg || '#1c1616';
+        ctx.strokeStyle = canvasTheme?.fretWire || '#382c2c';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.roundRect(barX + 2, 12, 26, 15, 3);
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = '#8e7f7f';
+        ctx.fillStyle = canvasTheme?.textSecondary || '#8e7f7f';
         ctx.font = '800 8px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -254,13 +259,13 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
         ctx.lineTo(width, y);
         ctx.lineWidth = isCurrentActiveString ? baseGauge + 1.2 : baseGauge;
         ctx.strokeStyle = isCurrentActiveString
-          ? '#FF7A65'
+          ? (canvasTheme?.nowIndicator || '#FF7A65')
           : i >= 3
-          ? '#382c2c' // wound string warm metallic
-          : '#2c2222'; // plain string steel
+          ? (canvasTheme?.stringInactive || '#382c2c') // wound string warm metallic
+          : (canvasTheme?.fretWire || '#2c2222'); // plain string steel
 
         if (isCurrentActiveString) {
-          ctx.shadowColor = '#FF7A65';
+          ctx.shadowColor = canvasTheme?.nowGlow || '#FF7A65';
           ctx.shadowBlur = 8;
         }
         ctx.stroke();
@@ -274,28 +279,28 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
 
         ctx.save();
         if (isCurrentActiveString) {
-          ctx.fillStyle = '#FF7A65';
-          ctx.shadowColor = '#FF7A65';
+          ctx.fillStyle = canvasTheme?.nowIndicator || '#FF7A65';
+          ctx.shadowColor = canvasTheme?.nowGlow || '#FF7A65';
           ctx.shadowBlur = 8;
           ctx.beginPath();
           ctx.roundRect(pillX, pillY, pillW, pillH, 3);
           ctx.fill();
 
-          ctx.fillStyle = '#120e0e';
+          ctx.fillStyle = canvasTheme?.background === '#f6f1e5' ? '#ffffff' : '#120e0e';
           ctx.font = '800 9px "JetBrains Mono", monospace';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(`${stringNum} ${pitchName}`, pillX + pillW / 2, y);
         } else {
-          ctx.fillStyle = '#1a1313';
-          ctx.strokeStyle = '#2d2222';
+          ctx.fillStyle = canvasTheme?.stringLabelBg || '#1a1313';
+          ctx.strokeStyle = canvasTheme?.fretboardBevel || '#2d2222';
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.roundRect(pillX, pillY, pillW, pillH, 3);
           ctx.fill();
           ctx.stroke();
 
-          ctx.fillStyle = '#837474';
+          ctx.fillStyle = canvasTheme?.stringLabelText || '#837474';
           ctx.font = '700 8.5px "JetBrains Mono", monospace';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
@@ -314,10 +319,10 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
 
       const isLoopAAtStrike = loopAMs !== undefined && Math.abs(loopAMs - currentTimeMs) < 60;
       const strikeText = isLoopAAtStrike ? 'LOOP A' : 'STRIKE';
-      const strikeColor = isLoopAAtStrike ? '#50fa7b' : '#FF7A65';
+      const strikeColor = isLoopAAtStrike ? '#50fa7b' : (canvasTheme?.nowIndicator || '#FF7A65');
 
       ctx.save();
-      ctx.fillStyle = '#221918';
+      ctx.fillStyle = canvasTheme?.stringLabelBg || '#221918';
       ctx.strokeStyle = strikeColor;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -355,9 +360,9 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
       ctx.moveTo(STRIKE_X, 29);
       ctx.lineTo(STRIKE_X, height - bottomPadding + 8);
       ctx.lineWidth = hasActiveHit ? 2.5 : 2.0;
-      ctx.strokeStyle = '#FF7A65';
+      ctx.strokeStyle = canvasTheme?.nowIndicator || '#FF7A65';
       if (hasActiveHit) {
-        ctx.shadowColor = '#FF7A65';
+        ctx.shadowColor = canvasTheme?.nowGlow || '#FF7A65';
         ctx.shadowBlur = 10;
       }
       ctx.stroke();
@@ -382,21 +387,21 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
           ctx.moveTo(posX, 36);
           ctx.lineTo(posX, height - bottomPadding + 6);
           ctx.lineWidth = 1;
-          ctx.strokeStyle = isMarkerFret ? 'rgba(70, 56, 56, 0.4)' : 'rgba(38, 30, 30, 0.25)';
+          ctx.strokeStyle = isMarkerFret ? (canvasTheme?.measureBar || 'rgba(70, 56, 56, 0.4)') : (canvasTheme?.gridLine || 'rgba(38, 30, 30, 0.25)');
           if (!isMarkerFret) ctx.setLineDash([2, 4]);
           ctx.stroke();
 
           // Fret label pill at top
           if (isMarkerFret) {
-            ctx.fillStyle = '#1c1616';
-            ctx.strokeStyle = '#382c2c';
+            ctx.fillStyle = canvasTheme?.stringLabelBg || '#1c1616';
+            ctx.strokeStyle = canvasTheme?.fretWire || '#382c2c';
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.roundRect(posX - 13, 13, 26, 15, 3);
             ctx.fill();
             ctx.stroke();
 
-            ctx.fillStyle = f === 0 ? '#FF7A65' : '#a89d9d';
+            ctx.fillStyle = f === 0 ? (canvasTheme?.nowIndicator || '#FF7A65') : (canvasTheme?.textSecondary || '#a89d9d');
             ctx.font = '800 8.5px "JetBrains Mono", monospace';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -426,8 +431,8 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
             ctx.save();
             if (isActivelyPlayed) {
               // Active played hit state
-              ctx.fillStyle = '#FF7A65';
-              ctx.shadowColor = '#FF7A65';
+              ctx.fillStyle = canvasTheme?.nowIndicator || '#FF7A65';
+              ctx.shadowColor = canvasTheme?.nowGlow || '#FF7A65';
               ctx.shadowBlur = 16;
               ctx.beginPath();
               ctx.roundRect(badgeX - 2, badgeY - 2, badgeW + 4, badgeH + 4, 5);
@@ -437,15 +442,15 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
               ctx.lineWidth = 1.5;
               ctx.stroke();
 
-              ctx.fillStyle = '#120e0e';
+              ctx.fillStyle = canvasTheme?.background === '#f6f1e5' ? '#ffffff' : '#120e0e';
               ctx.font = '900 11px "JetBrains Mono", monospace';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillText(scaleDisplayMode === 'notes' ? match.noteName : match.degree, posX, noteY);
             } else if (match.isRoot) {
-              // Root Note (Coral Red Glow)
-              ctx.fillStyle = 'rgba(255, 122, 101, 0.9)';
-              ctx.shadowColor = '#FF7A65';
+              // Root Note
+              ctx.fillStyle = canvasTheme?.nowIndicator || 'rgba(255, 122, 101, 0.9)';
+              ctx.shadowColor = canvasTheme?.nowGlow || '#FF7A65';
               ctx.shadowBlur = 10;
               ctx.beginPath();
               ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
@@ -455,7 +460,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
               ctx.lineWidth = 1.5;
               ctx.stroke();
 
-              ctx.fillStyle = '#120e0e';
+              ctx.fillStyle = canvasTheme?.background === '#f6f1e5' ? '#ffffff' : '#120e0e';
               ctx.font = '900 10.5px "JetBrains Mono", monospace';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
@@ -513,15 +518,15 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
         const bannerX = startHighwayX + (availableW - bannerW) / 2;
         const bannerY = 8;
 
-        ctx.fillStyle = 'rgba(22, 17, 17, 0.88)';
-        ctx.strokeStyle = '#3d3030';
+        ctx.fillStyle = canvasTheme?.stringLabelBg || 'rgba(22, 17, 17, 0.88)';
+        ctx.strokeStyle = canvasTheme?.fretboardBevel || '#3d3030';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 4);
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = '#FF7A65';
+        ctx.fillStyle = canvasTheme?.nowIndicator || '#FF7A65';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(
@@ -575,8 +580,8 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
                 // Smooth gradient sustain tail
                 const grad = ctx.createLinearGradient(tailStartX, noteY, tailStartX + tailLength, noteY);
                 if (isAtStrikeLine || progress < 0.2) {
-                  grad.addColorStop(0, 'rgba(255, 122, 101, 0.6)');
-                  grad.addColorStop(1, 'rgba(255, 122, 101, 0.05)');
+                  grad.addColorStop(0, canvasTheme?.nowGlow || 'rgba(255, 122, 101, 0.6)');
+                  grad.addColorStop(1, 'rgba(0, 0, 0, 0.05)');
                 } else {
                   grad.addColorStop(0, 'rgba(100, 85, 85, 0.4)');
                   grad.addColorStop(1, 'rgba(100, 85, 85, 0.05)');
@@ -631,35 +636,35 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
             ctx.save();
             if (isAtStrikeLine) {
               // Glowing Hit State with pulse shadow
-              ctx.fillStyle = '#FF7A65';
-              ctx.shadowColor = '#FF7A65';
+              ctx.fillStyle = canvasTheme?.nowIndicator || '#FF7A65';
+              ctx.shadowColor = canvasTheme?.nowGlow || '#FF7A65';
               ctx.shadowBlur = 16;
               ctx.beginPath();
               ctx.roundRect(badgeX - 2, badgeY - 2, badgeW + 4, badgeH + 4, 5);
               ctx.fill();
 
               // Hit shockwave ring
-              ctx.strokeStyle = 'rgba(255, 122, 101, 0.45)';
+              ctx.strokeStyle = canvasTheme?.nowGlow || 'rgba(255, 122, 101, 0.45)';
               ctx.lineWidth = 1.5;
               ctx.beginPath();
               ctx.roundRect(badgeX - 5, badgeY - 5, badgeW + 10, badgeH + 10, 6);
               ctx.stroke();
 
-              ctx.fillStyle = '#120e0e';
+              ctx.fillStyle = canvasTheme?.background === '#f6f1e5' ? '#ffffff' : '#120e0e';
               ctx.font = '900 12px "JetBrains Mono", monospace';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillText(`${n.fret}`, noteX, noteY);
             } else {
-              ctx.fillStyle = '#1a1313';
-              ctx.strokeStyle = progress < 0.25 ? '#FF7A65' : '#574d4d';
+              ctx.fillStyle = canvasTheme?.stringLabelBg || '#1a1313';
+              ctx.strokeStyle = progress < 0.25 ? (canvasTheme?.nowIndicator || '#FF7A65') : (canvasTheme?.fretWire || '#574d4d');
               ctx.lineWidth = 1.5;
               ctx.beginPath();
               ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
               ctx.fill();
               ctx.stroke();
 
-              ctx.fillStyle = progress < 0.25 ? '#FF7A65' : '#f5e8e8';
+              ctx.fillStyle = progress < 0.25 ? (canvasTheme?.nowIndicator || '#FF7A65') : (canvasTheme?.textPrimary || '#f5e8e8');
               ctx.font = '700 11px "JetBrains Mono", monospace';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
@@ -824,7 +829,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
             // Luminous tinted fill across the loop window
             const loopGrad = ctx.createLinearGradient(leftX, 0, rightX, 0);
             loopGrad.addColorStop(0, 'rgba(80, 250, 123, 0.12)'); // soft neon green
-            loopGrad.addColorStop(1, 'rgba(255, 122, 101, 0.12)'); // soft coral red
+            loopGrad.addColorStop(1, canvasTheme?.nowGlow || 'rgba(255, 122, 101, 0.12)');
             ctx.fillStyle = loopGrad;
             ctx.fillRect(leftX, 36, rightX - leftX, height - bottomPadding - 28);
 
@@ -916,7 +921,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
           ctx.restore();
         }
 
-        // C. Marker B: Coral Laser Beam & Flags
+        // C. Marker B: Laser Beam & Flags
         if (loopBMs !== undefined && xB !== null && xB >= STRIKE_X - 10 && xB <= width + 20) {
           ctx.save();
           const isAtStrike = Math.abs(xB - STRIKE_X) < 22;
@@ -926,15 +931,15 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
           ctx.moveTo(xB, isAtStrike ? 30 : 26);
           ctx.lineTo(xB, height - bottomPadding + 8);
           ctx.lineWidth = 2.5;
-          ctx.strokeStyle = '#FF7A65';
-          ctx.shadowColor = '#FF7A65';
+          ctx.strokeStyle = canvasTheme?.nowIndicator || '#FF7A65';
+          ctx.shadowColor = canvasTheme?.nowGlow || '#FF7A65';
           ctx.shadowBlur = 12;
           ctx.stroke();
 
           // Top Flag Badge at Ruler (skip when merged with STRIKE badge)
           if (!isAtStrike) {
             ctx.shadowBlur = 0;
-            ctx.fillStyle = '#FF7A65';
+            ctx.fillStyle = canvasTheme?.nowIndicator || '#FF7A65';
             ctx.beginPath();
             ctx.roundRect(xB - 14, 8, 28, 17, 3);
             ctx.fill();
@@ -948,7 +953,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
             ctx.fill();
 
             // Text
-            ctx.fillStyle = '#120e0e';
+            ctx.fillStyle = canvasTheme?.background === '#f6f1e5' ? '#ffffff' : '#120e0e';
             ctx.font = '900 9px "JetBrains Mono", monospace';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -957,15 +962,15 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
 
           // Bottom Timestamp Badge
           const secB = (loopBMs / 1000).toFixed(1);
-          ctx.fillStyle = '#181313';
-          ctx.strokeStyle = '#FF7A65';
+          ctx.fillStyle = canvasTheme?.stringLabelBg || '#181313';
+          ctx.strokeStyle = canvasTheme?.nowIndicator || '#FF7A65';
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.roundRect(xB - 18, height - bottomPadding + 8, 36, 14, 3);
           ctx.fill();
           ctx.stroke();
 
-          ctx.fillStyle = '#FF7A65';
+          ctx.fillStyle = canvasTheme?.nowIndicator || '#FF7A65';
           ctx.font = '800 8px "JetBrains Mono", monospace';
           ctx.fillText(`${secB}s`, xB, height - bottomPadding + 15);
           ctx.restore();
@@ -1005,7 +1010,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
       cancelAnimationFrame(animationFrameId);
     };
   }, [timeline, currentTimeMs, activeNotes, tuningNames, isPlaying, loopAMs, loopBMs, isFlipped, speed,
-      isScaleMode, scaleRoot, scaleId, scaleDisplayMode, tuning, backingProgressionName]);
+      isScaleMode, scaleRoot, scaleId, scaleDisplayMode, tuning, backingProgressionName, canvasTheme]);
 
   return (
     <div
@@ -1014,19 +1019,20 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
         flexDirection: 'row',
         width: '100%',
         height: '100%',
-        backgroundColor: '#120e0e',
-        borderBottom: '1px solid #2b2323',
+        backgroundColor: 'var(--bg-primary)',
+        borderBottom: '1px solid var(--border-subtle)',
         overflow: 'hidden',
         boxSizing: 'border-box',
       }}
     >
       {/* 1. Left Sub-Panel: SOUNDING NOTES & TECHNIQUE HUD */}
       <div
+        className="stage-hud-left-panel"
         style={{
           width: '185px',
           minWidth: '185px',
-          backgroundColor: '#161212',
-          borderRight: '1px solid #2b2323',
+          backgroundColor: 'var(--bg-surface)',
+          borderRight: '1px solid var(--border-subtle)',
           padding: '16px 14px',
           display: 'flex',
           flexDirection: 'column',
@@ -1054,9 +1060,9 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
                 width: '6px',
                 height: '6px',
                 borderRadius: '50%',
-                backgroundColor: '#FF7A65',
+                backgroundColor: 'var(--accent-coral)',
                 display: 'inline-block',
-                boxShadow: isPlaying ? '0 0 6px #FF7A65' : 'none',
+                boxShadow: isPlaying ? '0 0 6px var(--accent-coral)' : 'none',
               }}
             />
             SOUNDING NOTES
@@ -1068,10 +1074,10 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
               fontWeight: 900,
               fontFamily: 'var(--font-mono)',
               lineHeight: 1.0,
-              color: soundingNoteText === 'REST' ? '#5a5050' : '#ffffff',
+              color: soundingNoteText === 'REST' ? 'var(--text-muted)' : 'var(--text-primary)',
               letterSpacing: '-1px',
               marginBottom: '6px',
-              textShadow: soundingNoteText !== 'REST' ? '0 0 20px rgba(255, 122, 101, 0.4)' : 'none',
+              textShadow: soundingNoteText !== 'REST' ? '0 0 20px var(--accent-coral-glow)' : 'none',
             }}
           >
             {soundingNoteText}
@@ -1083,8 +1089,8 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
                 marginTop: '8px',
                 padding: '6px 8px',
                 borderRadius: '6px',
-                backgroundColor: '#201a1a',
-                border: '1px solid #2b2323',
+                backgroundColor: 'var(--bg-control)',
+                border: '1px solid var(--border-subtle)',
                 display: 'inline-flex',
                 justifyContent: 'center',
                 alignItems: 'center',
@@ -1095,6 +1101,8 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
                 numStrings={tuningNames.length || 6}
                 width={84}
                 height={92}
+                accentColor={canvasTheme?.nowIndicator}
+                fretColor={canvasTheme?.fretWire}
               />
             </div>
           ) : primaryNote ? (
@@ -1104,7 +1112,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
                   fontSize: '11px',
                   fontWeight: 700,
                   fontFamily: 'var(--font-mono)',
-                  color: '#FF7A65',
+                  color: 'var(--accent-coral)',
                   letterSpacing: '0.5px',
                   display: 'flex',
                   alignItems: 'center',
@@ -1112,7 +1120,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
                 }}
               >
                 <span>STR 0{primaryNote.string}</span>
-                <span style={{ color: '#574d4d' }}>•</span>
+                <span style={{ color: 'var(--border-strong)' }}>•</span>
                 <span>FRET {primaryNote.fret}</span>
               </div>
 
@@ -1145,7 +1153,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
                 fontSize: '11px',
                 fontWeight: 700,
                 fontFamily: 'var(--font-mono)',
-                color: '#655757',
+                color: 'var(--text-muted)',
                 letterSpacing: '0.5px',
               }}
             >
@@ -1159,8 +1167,8 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
           style={{
             padding: '6px 8px',
             borderRadius: '4px',
-            backgroundColor: '#201a1a',
-            border: '1px solid #362c2c',
+            backgroundColor: 'var(--bg-control)',
+            border: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -1171,7 +1179,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
               fontSize: '9.5px',
               fontFamily: 'var(--font-mono)',
               fontWeight: 700,
-              color: '#a89d9d',
+              color: 'var(--text-secondary)',
               letterSpacing: '0.5px',
             }}
           >
@@ -1182,7 +1190,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
               fontSize: '10px',
               fontFamily: 'var(--font-mono)',
               fontWeight: 800,
-              color: '#FF7A65',
+              color: 'var(--accent-coral)',
             }}
           >
             3.0s

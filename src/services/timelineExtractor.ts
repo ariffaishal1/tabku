@@ -35,6 +35,8 @@ export interface SectionMarker {
   name: string;
   startMs: number;
   barIndex: number;
+  endMs?: number;
+  durationMs?: number;
 }
 
 export interface MetronomeClick {
@@ -104,8 +106,8 @@ export function extractSongTimeline(
     const mb = score.masterBars[i];
 
     // Check for section
-    if (mb.section && mb.section.text) {
-      currentSectionName = mb.section.text;
+    if (mb.section && (mb.section.text || mb.section.marker)) {
+      currentSectionName = mb.section.text || `Section ${mb.section.marker}`;
       sections.push({
         name: currentSectionName,
         startMs: currentAccumulatedMs,
@@ -153,6 +155,13 @@ export function extractSongTimeline(
       startMs: 0,
       barIndex: 1,
     });
+  }
+
+  // Calculate endMs and durationMs for all sections
+  for (let s = 0; s < sections.length; s++) {
+    const nextStartMs = s < sections.length - 1 ? sections[s + 1].startMs : currentAccumulatedMs;
+    sections[s].endMs = nextStartMs;
+    sections[s].durationMs = Math.max(0, nextStartMs - sections[s].startMs);
   }
 
   // 2. Extract Beats from the active track
@@ -354,4 +363,51 @@ export function getCurrentAndNextBeats(
     nextSection,
     barIndex,
   };
+}
+
+/**
+ * Finds the active section containing the given timestamp in milliseconds.
+ */
+export function findSectionAtTime(sections: SectionMarker[], timeMs: number): SectionMarker | null {
+  if (!sections || sections.length === 0) return null;
+  for (let i = sections.length - 1; i >= 0; i--) {
+    if (timeMs >= sections[i].startMs) {
+      return sections[i];
+    }
+  }
+  return sections[0];
+}
+
+/**
+ * Finds the previous section relative to current timestamp.
+ * If playback is more than 1.5 seconds into the current section,
+ * it returns the start of the current section (rewind current section).
+ * Otherwise, it returns the preceding section.
+ */
+export function findPrevSection(sections: SectionMarker[], timeMs: number): SectionMarker | null {
+  if (!sections || sections.length === 0) return null;
+  let currentIdx = 0;
+  for (let i = sections.length - 1; i >= 0; i--) {
+    if (timeMs >= sections[i].startMs) {
+      currentIdx = i;
+      break;
+    }
+  }
+  if (currentIdx <= 0) {
+    return sections[0];
+  }
+  const currentSec = sections[currentIdx];
+  if (timeMs - currentSec.startMs > 1500) {
+    return currentSec;
+  }
+  return sections[currentIdx - 1];
+}
+
+/**
+ * Finds the next section relative to current timestamp.
+ */
+export function findNextSection(sections: SectionMarker[], timeMs: number): SectionMarker | null {
+  if (!sections || sections.length === 0) return null;
+  const nextSec = sections.find((s) => s.startMs > timeMs + 50);
+  return nextSec || null;
 }

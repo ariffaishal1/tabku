@@ -38,10 +38,11 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
   const categories: ShortcutCategory[] = [
     {
       title: 'PLAYBACK & NAVIGASI',
-      icon: <Play size={13} color="#FF7A65" />,
+      icon: <Play size={13} color="var(--accent-coral)" />,
       items: [
         { keys: ['Space'], description: 'Putar / Jeda Lagu (Play/Pause)' },
         { keys: ['←', '→'], description: 'Mundur / Maju 5 detik' },
+        { keys: ['Shift', '← / →'], description: 'Lompat ke Bagian Lagu (Section Prev / Next)', badge: 'Mini-Map' },
         { keys: ['-', '+'], description: 'Kecepatan Tempo (±0.1x)' },
       ],
     },
@@ -68,8 +69,9 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
     },
     {
       title: 'SISTEM & BANTUAN',
-      icon: <Sparkles size={13} color="#50fa7b" />,
+      icon: <Sparkles size={13} color="var(--accent-green)" />,
       items: [
+        { keys: ['C'], description: 'Ganti Tema Studio (Cyber / Parchment / Stealth)', badge: 'Theme' },
         { keys: ['?'], description: 'Buka Cheat Sheet Pintasan Ini' },
         { keys: ['Esc'], description: 'Tutup Jendela Modal' },
       ],
@@ -82,7 +84,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(12, 9, 9, 0.78)',
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(6px)',
         WebkitBackdropFilter: 'blur(6px)',
         display: 'flex',
@@ -99,11 +101,11 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
         style={{
           width: '100%',
           maxWidth: '720px',
-          backgroundColor: '#161212',
-          border: '1px solid #362c2c',
+          backgroundColor: 'var(--bg-surface-elevated)',
+          border: '1px solid var(--border-medium)',
           borderRadius: '8px',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 24px rgba(255, 122, 101, 0.12)',
-          color: '#ffffff',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 24px var(--accent-coral-glow)',
+          color: 'var(--text-primary)',
           fontFamily: 'var(--font-mono)',
           overflow: 'hidden',
           display: 'flex',
@@ -118,8 +120,8 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '16px 20px',
-            backgroundColor: '#1c1616',
-            borderBottom: '1px solid #2a2020',
+            backgroundColor: 'var(--bg-surface)',
+            borderBottom: '1px solid var(--border-subtle)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -128,12 +130,12 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
                 width: '32px',
                 height: '32px',
                 borderRadius: '6px',
-                backgroundColor: 'rgba(255, 122, 101, 0.15)',
-                border: '1px solid rgba(255, 122, 101, 0.3)',
+                backgroundColor: 'var(--accent-coral-glow)',
+                border: '1px solid var(--accent-coral)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#FF7A65',
+                color: 'var(--accent-coral)',
               }}
             >
               <Keyboard size={18} />
@@ -143,7 +145,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
                 style={{
                   fontSize: '9.5px',
                   fontWeight: 800,
-                  color: '#FF7A65',
+                  color: 'var(--accent-coral)',
                   letterSpacing: '1.2px',
                   display: 'flex',
                   alignItems: 'center',
@@ -151,7 +153,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
                 }}
               >
                 <span>\\ SYSTEM COMMANDS</span>
-                <span style={{ color: '#524545' }}>/</span>
+                <span style={{ color: 'var(--border-strong)' }}>/</span>
                 <span>QUICK REFERENCE</span>
               </div>
               <h2
@@ -160,7 +162,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
                   fontSize: '15px',
                   fontWeight: 900,
                   letterSpacing: '0.4px',
-                  color: '#ffffff',
+                  color: 'var(--text-primary)',
                 }}
               >
                 KEYBOARD SHORTCUTS
@@ -172,10 +174,10 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
             onClick={onClose}
             className="studio-btn-base"
             style={{
-              background: '#241b1b',
-              border: '1px solid #3d3030',
+              background: 'var(--bg-control)',
+              border: '1px solid var(--border-medium)',
               borderRadius: '4px',
-              color: '#c5b8b8',
+              color: 'var(--text-secondary)',
               cursor: 'pointer',
               padding: '6px',
               display: 'flex',
@@ -204,8 +206,8 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
             <div
               key={idx}
               style={{
-                backgroundColor: '#1b1515',
-                border: '1px solid #282020',
+                backgroundColor: 'var(--bg-control)',
+                border: '1px solid var(--border-subtle)',
                 borderRadius: '6px',
                 padding: '14px',
               }}
@@ -218,10 +220,10 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
                   gap: '6px',
                   fontSize: '10.5px',
                   fontWeight: 800,
-                  color: '#c5b8b8',
+                  color: 'var(--text-secondary)',
                   letterSpacing: '0.8px',
                   marginBottom: '12px',
-                  borderBottom: '1px solid #231b1b',
+                  borderBottom: '1px solid var(--border-subtle)',
                   paddingBottom: '8px',
                 }}
               >
@@ -244,7 +246,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
                     <span
                       style={{
                         fontSize: '11px',
-                        color: '#9e9191',
+                        color: 'var(--text-secondary)',
                         fontWeight: 600,
                         lineHeight: 1.3,
                       }}
@@ -267,10 +269,10 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
                             fontSize: '10px',
                             fontWeight: 800,
                             fontFamily: 'var(--font-mono)',
-                            color: '#ffffff',
-                            backgroundColor: '#261e1e',
-                            border: '1px solid #453737',
-                            borderBottom: '2px solid #5a4747',
+                            color: 'var(--text-primary)',
+                            backgroundColor: 'var(--bg-surface-elevated)',
+                            border: '1px solid var(--border-medium)',
+                            borderBottom: '2px solid var(--border-strong)',
                             borderRadius: '4px',
                             boxShadow: '0 2px 4px rgba(0, 0, 0, 0.4)',
                             userSelect: 'none',
@@ -294,15 +296,15 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '12px 20px',
-            backgroundColor: '#191313',
-            borderTop: '1px solid #282020',
+            backgroundColor: 'var(--bg-surface)',
+            borderTop: '1px solid var(--border-subtle)',
             fontSize: '10px',
-            color: '#7a6e6e',
+            color: 'var(--text-muted)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ color: '#FF7A65' }}>💡</span>
-            <span>Tekan <kbd style={{ padding: '1px 5px', background: '#251e1e', border: '1px solid #3d3030', borderRadius: '3px', color: '#fff' }}>?</kbd> kapan saja untuk membuka panduan ini.</span>
+            <span style={{ color: 'var(--accent-coral)' }}>💡</span>
+            <span>Tekan <kbd style={{ padding: '1px 5px', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-medium)', borderRadius: '3px', color: 'var(--text-primary)' }}>?</kbd> kapan saja untuk membuka panduan ini.</span>
           </div>
 
           <button
@@ -310,10 +312,10 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
             className="studio-btn-base"
             style={{
               padding: '6px 14px',
-              backgroundColor: '#261e1e',
-              border: '1px solid #3d3030',
+              backgroundColor: 'var(--bg-control)',
+              border: '1px solid var(--border-medium)',
               borderRadius: '4px',
-              color: '#d4c7c7',
+              color: 'var(--text-primary)',
               fontSize: '10.5px',
               fontWeight: 800,
               fontFamily: 'var(--font-mono)',

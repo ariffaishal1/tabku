@@ -7,6 +7,7 @@ import {
   type ScaleDisplayMode,
   getScalePositionInfo,
 } from '../../services/scaleTheory';
+import type { CanvasThemeColors } from '../../types/theme';
 
 interface FlatFretboard2DProps {
   activeNotes: ExtractedNote[];
@@ -24,6 +25,9 @@ interface FlatFretboard2DProps {
   scaleDisplayMode?: ScaleDisplayMode;
   scalePosition?: number | 'all';
   backingProgressionName?: string;
+
+  // Custom Theme Palette (FR-NEXT-08)
+  canvasTheme?: CanvasThemeColors;
 }
 
 const INLAY_SINGLE_FRETS = [3, 5, 7, 9, 15, 17, 19, 21];
@@ -49,6 +53,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
   scaleDisplayMode = 'degrees',
   scalePosition = 'all',
   backingProgressionName,
+  canvasTheme,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -167,7 +172,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       ctx.scale(dpr, dpr);
 
       // Background
-      ctx.fillStyle = '#120e0e';
+      ctx.fillStyle = canvasTheme?.background || '#120e0e';
       ctx.fillRect(0, 0, width, height);
 
       const numStrings = tuningNames.length > 0 ? tuningNames.length : 6;
@@ -195,12 +200,12 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       };
 
     // 1. Draw Fretboard Wood / Background Surface (with slight bevel above String 1)
-    ctx.fillStyle = '#181414';
+    ctx.fillStyle = canvasTheme?.fretboardWood || '#181414';
     ctx.fillRect(leftMargin, topMargin - 4, fretboardWidth, fretboardHeight + 8);
 
     // 2. Draw Inlay Dots (between string 3 and 4 or across board)
     const midY = topMargin + fretboardHeight / 2;
-    ctx.fillStyle = '#3a3131';
+    ctx.fillStyle = canvasTheme?.markerDot || '#3a3131';
 
     for (let f = 1; f <= TOTAL_FRETS; f++) {
       const fretCenterX = leftMargin + f * fretWidth + fretWidth / 2;
@@ -231,10 +236,10 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       if (f === 1) {
         // The Nut (thick white/bone line)
         ctx.lineWidth = 4;
-        ctx.strokeStyle = '#c5b8b8';
+        ctx.strokeStyle = canvasTheme?.fretWireZero || '#c5b8b8';
       } else {
         ctx.lineWidth = 1.0;
-        ctx.strokeStyle = '#322b2b';
+        ctx.strokeStyle = canvasTheme?.fretWire || '#322b2b';
       }
       ctx.stroke();
 
@@ -245,7 +250,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       ctx.font = isSpecialFret ? '700 9.5px "JetBrains Mono", monospace' : '500 8.5px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = isSpecialFret ? '#a89d9d' : '#524949';
+      ctx.fillStyle = isSpecialFret ? (canvasTheme?.textSecondary || '#a89d9d') : (canvasTheme?.markerText || '#524949');
       ctx.fillText(formattedFret, fretCenterX, topMargin + fretboardHeight + 8);
     }
 
@@ -255,7 +260,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
     ctx.moveTo(endFretX, topMargin - 4);
     ctx.lineTo(endFretX, topMargin + fretboardHeight + 4);
     ctx.lineWidth = 2;
-    ctx.strokeStyle = '#443a3a';
+    ctx.strokeStyle = canvasTheme?.fretWire || '#443a3a';
     ctx.stroke();
 
     // 4. Draw Strings (1 to 6)
@@ -270,7 +275,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       ctx.font = '700 11px "JetBrains Mono", monospace';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = isCurrentActive ? '#FF7A65' : '#685e5e';
+      ctx.fillStyle = isCurrentActive ? (canvasTheme?.nowIndicator || '#FF7A65') : (canvasTheme?.stringLabelText || '#685e5e');
       ctx.fillText(pitchName, leftMargin - 12, y);
 
       // String line thickness (thicker for low bass strings)
@@ -279,7 +284,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       ctx.moveTo(leftMargin, y);
       ctx.lineTo(endFretX, y);
       ctx.lineWidth = isCurrentActive ? stringThickness + 1.2 : stringThickness;
-      ctx.strokeStyle = isCurrentActive ? '#ff7a65aa' : '#5e5252';
+      ctx.strokeStyle = isCurrentActive ? (canvasTheme?.nowIndicator ? `${canvasTheme.nowIndicator}cc` : '#ff7a65aa') : (canvasTheme?.stringInactive || '#5e5252');
       ctx.stroke();
     }
 
@@ -294,15 +299,15 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
 
         ctx.save();
         // Soft translucent cyber frame fill
-        ctx.fillStyle = 'rgba(255, 122, 101, 0.05)';
+        ctx.fillStyle = canvasTheme?.nowGlow || 'rgba(255, 122, 101, 0.05)';
         ctx.beginPath();
         ctx.roundRect(boxX1, boxY, boxW, boxH, 6);
         ctx.fill();
 
         // Glowing cyber frame border
-        ctx.strokeStyle = '#FF7A65';
+        ctx.strokeStyle = canvasTheme?.nowIndicator || '#FF7A65';
         ctx.lineWidth = 1.8;
-        ctx.shadowColor = '#FF7A65';
+        ctx.shadowColor = canvasTheme?.nowGlow || '#FF7A65';
         ctx.shadowBlur = 10;
         ctx.stroke();
 
@@ -316,15 +321,15 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
         const bX = boxX1 + (boxW - bW) / 2;
         const bY = Math.max(3, boxY - bH - 3);
 
-        ctx.fillStyle = '#1e1414';
+        ctx.fillStyle = canvasTheme?.fretboardBevel || '#1e1414';
         ctx.beginPath();
         ctx.roundRect(bX, bY, bW, bH, 3);
         ctx.fill();
-        ctx.strokeStyle = '#FF7A65';
+        ctx.strokeStyle = canvasTheme?.nowIndicator || '#FF7A65';
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        ctx.fillStyle = '#FF7A65';
+        ctx.fillStyle = canvasTheme?.nowIndicator || '#FF7A65';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(badgeText, boxX1 + boxW / 2, bY + bH / 2);
@@ -367,18 +372,18 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
           }
 
           if (match.isRoot) {
-            // Coral Red for Root Note
+            // Root Note
             if (isInActiveBox) {
-              ctx.shadowColor = '#FF7A65';
+              ctx.shadowColor = canvasTheme?.nowGlow || '#FF7A65';
               ctx.shadowBlur = isFullHeight ? 14 : 10;
             }
-            ctx.fillStyle = '#FF7A65';
+            ctx.fillStyle = canvasTheme?.nowIndicator || '#FF7A65';
             ctx.beginPath();
             ctx.arc(fretCenterX, y, rootR, 0, Math.PI * 2);
             ctx.fill();
 
             // Root label inside
-            ctx.fillStyle = '#120e0e';
+            ctx.fillStyle = canvasTheme?.background === '#f6f1e5' ? '#ffffff' : '#120e0e';
             ctx.font = rootFont;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -436,7 +441,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       const half = markerSize / 2;
 
       ctx.save();
-      ctx.strokeStyle = '#FF7A65';
+      ctx.strokeStyle = canvasTheme?.nowIndicator || '#FF7A65';
       ctx.lineWidth = 2;
 
       // Draw Diamond / Corner Bracket cue
@@ -470,7 +475,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       ctx.stroke();
 
       // Next Note number inside
-      ctx.fillStyle = '#FF7A65';
+      ctx.fillStyle = canvasTheme?.nowIndicator || '#FF7A65';
       ctx.font = '700 10px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -515,7 +520,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       // Hammer/Pull: #50fa7b (neon green)
       // Harmonic: #8be9fd (ethereal cyan)
       // Palm Mute: #ffb86c (amber)
-      // Standard: #FF7A65 (coral red)
+      // Standard: canvasTheme.nowIndicator
 
       // Base Box Fill & Glow
       if (n.isHarmonic) {
@@ -525,19 +530,19 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       } else if (n.isBend) {
         ctx.shadowColor = '#f1fa8c';
         ctx.shadowBlur = 14;
-        ctx.fillStyle = '#FF7A65';
+        ctx.fillStyle = canvasTheme?.nowIndicator || '#FF7A65';
       } else if (n.isSlide) {
         ctx.shadowColor = '#8be9fd';
         ctx.shadowBlur = 14;
-        ctx.fillStyle = '#FF7A65';
+        ctx.fillStyle = canvasTheme?.nowIndicator || '#FF7A65';
       } else if (n.isVibrato) {
         ctx.shadowColor = '#ff79c6';
         ctx.shadowBlur = 16;
-        ctx.fillStyle = '#FF7A65';
+        ctx.fillStyle = canvasTheme?.nowIndicator || '#FF7A65';
       } else {
-        ctx.shadowColor = '#FF7A65';
+        ctx.shadowColor = canvasTheme?.nowGlow || '#FF7A65';
         ctx.shadowBlur = 14;
-        ctx.fillStyle = '#FF7A65';
+        ctx.fillStyle = canvasTheme?.nowIndicator || '#FF7A65';
       }
 
       // Draw Main Note Box
@@ -546,7 +551,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
       ctx.fill();
 
       // Fret text inside box
-      ctx.fillStyle = '#120e0e';
+      ctx.fillStyle = canvasTheme?.background === '#f6f1e5' ? '#ffffff' : '#120e0e';
       ctx.font = '900 11.5px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -886,7 +891,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
   return () => {
     cancelAnimationFrame(animId);
   };
-}, [activeNotes, nextNotes, tuningNames, tuning, isPlaying, isFlipped, isScaleMode, scaleRoot, scaleId, scaleDisplayMode, scalePosition, backingProgressionName, positionInfo]);
+}, [activeNotes, nextNotes, tuningNames, tuning, isPlaying, isFlipped, isScaleMode, scaleRoot, scaleId, scaleDisplayMode, scalePosition, backingProgressionName, positionInfo, canvasTheme]);
 
   return (
     <div
@@ -895,19 +900,20 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
         flexDirection: 'row',
         width: '100%',
         height: '100%',
-        backgroundColor: '#120e0e',
-        borderBottom: '1px solid #2b2323',
+        backgroundColor: 'var(--bg-primary)',
+        borderBottom: '1px solid var(--border-subtle)',
         overflow: 'hidden',
         boxSizing: 'border-box',
       }}
     >
       {/* 1. Left Sub-Panel: ACTIVE FRETS */}
       <div
+        className="stage-hud-left-panel"
         style={{
           width: '175px',
           minWidth: '175px',
-          backgroundColor: '#161212',
-          borderRight: '1px solid #2b2323',
+          backgroundColor: 'var(--bg-surface)',
+          borderRight: '1px solid var(--border-subtle)',
           padding: '14px 12px',
           display: 'flex',
           flexDirection: 'column',
@@ -935,7 +941,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
                 width: '6px',
                 height: '6px',
                 borderRadius: '50%',
-                backgroundColor: isScaleMode ? '#8be9fd' : '#FF7A65',
+                backgroundColor: isScaleMode ? '#8be9fd' : 'var(--accent-coral)',
                 display: 'inline-block',
                 boxShadow: isScaleMode ? '0 0 6px #8be9fd' : 'none',
               }}
@@ -949,10 +955,10 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
               fontWeight: 900,
               fontFamily: 'var(--font-mono)',
               lineHeight: 1.0,
-              color: activeFretText === '--' ? '#5a5050' : '#FF7A65',
+              color: activeFretText === '--' ? 'var(--text-muted)' : 'var(--accent-coral)',
               letterSpacing: '-1px',
               marginBottom: '6px',
-              textShadow: activeFretText !== '--' ? '0 0 20px rgba(255, 122, 101, 0.5)' : 'none',
+              textShadow: activeFretText !== '--' ? '0 0 20px var(--accent-coral-glow)' : 'none',
             }}
           >
             {activeFretText}
@@ -964,7 +970,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
               fontSize: '10.5px',
               fontWeight: 700,
               fontFamily: 'var(--font-mono)',
-              color: '#f0e6e6',
+              color: 'var(--text-primary)',
               letterSpacing: '0.5px',
               marginBottom: '4px',
               whiteSpace: 'nowrap',
@@ -981,7 +987,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
               fontSize: '9px',
               fontWeight: 600,
               fontFamily: 'var(--font-mono)',
-              color: '#9e9191',
+              color: 'var(--text-muted)',
               letterSpacing: '0.3px',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -1009,7 +1015,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
               ? 'rgba(139, 233, 253, 0.12)'
               : primaryNote?.isPalmMute
               ? 'rgba(255, 184, 108, 0.12)'
-              : '#201a1a',
+              : 'var(--bg-control)',
             border: primaryNote?.isBend
               ? '1px solid rgba(241, 250, 140, 0.4)'
               : primaryNote?.isSlide
@@ -1022,7 +1028,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
               ? '1px solid rgba(139, 233, 253, 0.4)'
               : primaryNote?.isPalmMute
               ? '1px solid rgba(255, 184, 108, 0.4)'
-              : '1px solid #362c2c',
+              : '1px solid var(--border-medium)',
             fontSize: '9.5px',
             fontFamily: 'var(--font-mono)',
             fontWeight: 800,
@@ -1038,7 +1044,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
               ? '#8be9fd'
               : primaryNote?.isPalmMute
               ? '#ffb86c'
-              : '#FF7A65',
+              : 'var(--accent-coral)',
             letterSpacing: '0.5px',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -1078,18 +1084,19 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
 
         {/* Legend Bar at Bottom */}
         <div
+          className="stage-legend-footer"
           style={{
-            height: '24px',
-            backgroundColor: '#100d0d',
-            borderTop: '1px solid #231c1c',
+            minHeight: '24px',
+            backgroundColor: 'var(--bg-surface)',
+            borderTop: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 20px',
+            padding: '4px 16px',
             fontSize: '9.5px',
             fontFamily: 'var(--font-mono)',
             fontWeight: 600,
-            color: '#7a7070',
+            color: 'var(--text-muted)',
             userSelect: 'none',
           }}
         >
@@ -1102,12 +1109,12 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
                       display: 'inline-block',
                       width: '8px',
                       height: '8px',
-                      backgroundColor: '#FF7A65',
+                      backgroundColor: 'var(--accent-coral)',
                       borderRadius: '50%',
-                      boxShadow: '0 0 6px #FF7A65',
+                      boxShadow: '0 0 6px var(--accent-coral)',
                     }}
                   />
-                  <span style={{ color: '#FF7A65', fontWeight: 800 }}>ROOT</span>
+                  <span style={{ color: 'var(--accent-coral)', fontWeight: 800 }}>ROOT</span>
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <span
@@ -1128,12 +1135,12 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
                       display: 'inline-block',
                       width: '8px',
                       height: '8px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                      backgroundColor: 'var(--bg-control)',
+                      border: '1px solid var(--border-medium)',
                       borderRadius: '50%',
                     }}
                   />
-                  <span style={{ color: '#d0c4c4', fontWeight: 700 }}>SCALE TONE</span>
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>SCALE TONE</span>
                 </span>
                 {scalePosition !== 'all' && (
                   <span
@@ -1144,7 +1151,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
                       backgroundColor: 'rgba(139, 233, 253, 0.1)',
                       border: '1px solid rgba(139, 233, 253, 0.35)',
                       borderRadius: '3px',
-                      color: '#8be9fd',
+                      color: 'var(--accent-cyan)',
                       fontWeight: 800,
                       fontSize: '9px',
                     }}
@@ -1152,7 +1159,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
                     BOX {scalePosition} ACTIVE
                   </span>
                 )}
-                <span style={{ color: '#362c2c' }}>|</span>
+                <span style={{ color: 'var(--border-subtle)' }}>|</span>
               </>
             )}
             <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -1161,11 +1168,11 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
                   display: 'inline-block',
                   width: '8px',
                   height: '8px',
-                  backgroundColor: '#FF7A65',
+                  backgroundColor: 'var(--accent-coral)',
                   borderRadius: '1px',
                 }}
               />
-              <span style={{ color: '#FF7A65', fontWeight: 700 }}>NOW</span>
+              <span style={{ color: 'var(--accent-coral)', fontWeight: 700 }}>NOW</span>
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <span
@@ -1173,11 +1180,11 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
                   display: 'inline-block',
                   width: '8px',
                   height: '8px',
-                  border: '1.5px solid #FF7A65',
+                  border: '1.5px solid var(--accent-coral)',
                   borderRadius: '1px',
                 }}
               />
-              <span style={{ color: '#d0c4c4' }}>NEXT</span>
+              <span style={{ color: 'var(--text-secondary)' }}>NEXT</span>
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: '#f1fa8c', fontWeight: 800 }}>⤴</span>
@@ -1201,7 +1208,7 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
             </span>
           </div>
 
-          <div style={{ color: '#685e5e', letterSpacing: '0.5px' }}>
+          <div style={{ color: 'var(--text-muted)', letterSpacing: '0.5px' }}>
             {isScaleMode ? 'SCALE ROADMAP · 24 FRETS' : 'FULL FRETBOARD / 00-24'}
           </div>
         </div>

@@ -56,28 +56,28 @@ const ToastCard: React.FC<{ toast: ToastItem; onDismiss: (id: string) => void }>
 
   const config = {
     success: {
-      color: '#50fa7b',
+      color: 'var(--accent-green)',
       bgGlow: 'rgba(80, 250, 123, 0.12)',
-      border: '#50fa7b',
-      icon: <CheckCircle2 size={16} color="#50fa7b" />,
+      border: 'var(--accent-green)',
+      icon: <CheckCircle2 size={16} color="var(--accent-green)" />,
     },
     error: {
-      color: '#ff5555',
+      color: 'var(--accent-red)',
       bgGlow: 'rgba(255, 85, 85, 0.15)',
-      border: '#ff5555',
-      icon: <AlertCircle size={16} color="#ff5555" />,
+      border: 'var(--accent-red)',
+      icon: <AlertCircle size={16} color="var(--accent-red)" />,
     },
     warning: {
-      color: '#ffb86c',
+      color: 'var(--accent-amber)',
       bgGlow: 'rgba(255, 184, 108, 0.15)',
-      border: '#ffb86c',
-      icon: <AlertTriangle size={16} color="#ffb86c" />,
+      border: 'var(--accent-amber)',
+      icon: <AlertTriangle size={16} color="var(--accent-amber)" />,
     },
     info: {
-      color: '#FF7A65',
-      bgGlow: 'rgba(255, 122, 101, 0.15)',
-      border: '#FF7A65',
-      icon: <Info size={16} color="#FF7A65" />,
+      color: 'var(--accent-coral)',
+      bgGlow: 'var(--accent-coral-glow)',
+      border: 'var(--accent-coral)',
+      icon: <Info size={16} color="var(--accent-coral)" />,
     },
   }[toast.type];
 
@@ -89,11 +89,11 @@ const ToastCard: React.FC<{ toast: ToastItem; onDismiss: (id: string) => void }>
         alignItems: 'flex-start',
         gap: '12px',
         padding: '12px 14px',
-        backgroundColor: '#1c1515',
+        backgroundColor: 'var(--bg-surface-elevated)',
         border: `1px solid ${config.border}`,
         borderRadius: '6px',
         boxShadow: `0 8px 24px rgba(0, 0, 0, 0.7), 0 0 16px ${config.bgGlow}`,
-        color: '#ffffff',
+        color: 'var(--text-primary)',
         pointerEvents: 'auto',
         position: 'relative',
         overflow: 'hidden',
@@ -130,7 +130,7 @@ const ToastCard: React.FC<{ toast: ToastItem; onDismiss: (id: string) => void }>
             style={{
               fontFamily: 'var(--font-ui)',
               fontSize: '11px',
-              color: '#c5b8b8',
+              color: 'var(--text-secondary)',
               marginTop: '3px',
               lineHeight: 1.4,
               wordBreak: 'break-word',
@@ -147,7 +147,7 @@ const ToastCard: React.FC<{ toast: ToastItem; onDismiss: (id: string) => void }>
         style={{
           background: 'transparent',
           border: 'none',
-          color: '#8c7d7d',
+          color: 'var(--text-muted)',
           cursor: 'pointer',
           padding: '2px',
           display: 'flex',
@@ -156,8 +156,8 @@ const ToastCard: React.FC<{ toast: ToastItem; onDismiss: (id: string) => void }>
           borderRadius: '3px',
           transition: 'color 0.15s ease',
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
-        onMouseLeave={(e) => (e.currentTarget.style.color = '#8c7d7d')}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
         title="Tutup notifikasi"
       >
         <X size={14} />

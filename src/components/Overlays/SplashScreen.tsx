@@ -41,8 +41,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: '#120e0e',
-        background: 'radial-gradient(circle at 50% 40%, #1e1616 0%, #120e0e 70%)',
+        backgroundColor: 'var(--bg-primary)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -77,14 +76,14 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
             fontSize: '11px',
             fontWeight: 800,
             letterSpacing: '2px',
-            color: '#8c7d7d',
+            color: 'var(--text-muted)',
             marginBottom: '10px',
           }}
         >
-          <span style={{ color: '#FF7A65' }}>\\</span>
+          <span style={{ color: 'var(--accent-coral)' }}>\\</span>
           <span>CYBER AUDIO STUDIO</span>
-          <span style={{ color: '#524545' }}>/</span>
-          <span style={{ color: '#FF7A65' }}>DEVELOP DEVICE STYLE</span>
+          <span style={{ color: 'var(--border-strong)' }}>/</span>
+          <span style={{ color: 'var(--accent-coral)' }}>DEVELOP DEVICE STYLE</span>
         </div>
 
         {/* Big Brand Title */}
@@ -94,12 +93,12 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
             fontSize: '36px',
             fontWeight: 900,
             letterSpacing: '1px',
-            color: '#ffffff',
+            color: 'var(--text-primary)',
             margin: '0 0 6px 0',
-            textShadow: '0 0 30px rgba(255, 122, 101, 0.25)',
+            textShadow: '0 0 30px var(--accent-coral-glow)',
           }}
         >
-          TAB<span style={{ color: '#FF7A65' }}>KU</span>
+          TAB<span style={{ color: 'var(--accent-coral)' }}>KU</span>
         </h1>
 
         <div
@@ -107,7 +106,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
             fontFamily: 'var(--font-mono)',
             fontSize: '12px',
             fontWeight: 700,
-            color: '#c5b8b8',
+            color: 'var(--text-secondary)',
             letterSpacing: '1px',
             marginBottom: '32px',
           }}
@@ -164,8 +163,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
                   padding: '8px 16px',
                   borderRadius: '4px',
                   border: 'none',
-                  backgroundColor: '#FF7A65',
-                  color: '#120e0e',
+                  backgroundColor: 'var(--accent-coral)',
+                  color: 'var(--text-inverse)',
                   fontFamily: 'var(--font-mono)',
                   fontSize: '11px',
                   fontWeight: 800,
@@ -186,8 +185,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
               style={{
                 width: '100%',
                 height: '8px',
-                backgroundColor: '#221919',
-                border: '1px solid #3d2f2f',
+                backgroundColor: 'var(--bg-control)',
+                border: '1px solid var(--border-medium)',
                 borderRadius: '4px',
                 overflow: 'hidden',
                 position: 'relative',
@@ -199,8 +198,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
                 style={{
                   height: '100%',
                   width: `${Math.max(5, Math.min(100, progress))}%`,
-                  backgroundColor: '#FF7A65',
-                  boxShadow: '0 0 14px rgba(255, 122, 101, 0.8)',
+                  backgroundColor: 'var(--accent-coral)',
+                  boxShadow: '0 0 14px var(--accent-coral-glow)',
                   borderRadius: '3px',
                   transition: 'width 0.25s ease-out',
                 }}
@@ -216,15 +215,15 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
                 fontFamily: 'var(--font-mono)',
                 fontSize: '11px',
                 fontWeight: 700,
-                color: '#a09191',
+                color: 'var(--text-muted)',
                 marginBottom: '28px',
               }}
             >
-              <span style={{ color: '#FF7A65', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ color: 'var(--accent-coral)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <span className="spin-anim" style={{ display: 'inline-block' }}>⚙️</span>
                 <span>{statusText}</span>
               </span>
-              <span style={{ color: '#ffffff', fontWeight: 900 }}>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 900 }}>
                 {Math.round(progress)}%
               </span>
             </div>

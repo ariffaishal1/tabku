@@ -1,6 +1,7 @@
 @import './App.css';
 
-:root {
+:root,
+[data-theme="cyber-neon"] {
   /* Develop Device Studio Palette: Warm Dark Charcoal / Obsidian with Coral Red */
   --bg-primary: #120e0e;
   --bg-surface: #161212;
@@ -34,6 +35,62 @@
   /* Layout */
   --radius-sm: 4px;
   --radius-md: 6px;
+}
+
+[data-theme="classic-parchment"] {
+  /* Vintage Music Sheet Parchment & Warm Aged Maple */
+  --bg-primary: #f6f1e5;
+  --bg-surface: #ede6d6;
+  --bg-surface-elevated: #e2dac8;
+  --bg-surface-hover: #d8ceb8;
+  --bg-control: #ded4c0;
+  --bg-control-active: #d0c4ae;
+
+  --border-subtle: #dcd3bf;
+  --border-medium: #cfc4ac;
+  --border-strong: #b8aa8e;
+
+  /* Typography Colors */
+  --text-primary: #221a15;
+  --text-secondary: #5a4b41;
+  --text-muted: #847569;
+  --text-inverse: #ffffff;
+
+  /* Accents */
+  --accent-coral: #b83a24;
+  --accent-coral-glow: rgba(184, 58, 36, 0.25);
+  --accent-amber: #a86208;
+  --accent-cyan: #196f8a;
+  --accent-green: #2a733e;
+  --accent-red: #c92a2a;
+}
+
+[data-theme="stealth-black"] {
+  /* OLED Pure Black Minimalist & Battery Saver */
+  --bg-primary: #000000;
+  --bg-surface: #0a0a0a;
+  --bg-surface-elevated: #141414;
+  --bg-surface-hover: #1e1e1e;
+  --bg-control: #181818;
+  --bg-control-active: #242424;
+
+  --border-subtle: #1c1c1c;
+  --border-medium: #2a2a2a;
+  --border-strong: #444444;
+
+  /* Typography Colors */
+  --text-primary: #ffffff;
+  --text-secondary: #cccccc;
+  --text-muted: #777777;
+  --text-inverse: #000000;
+
+  /* Accents */
+  --accent-coral: #00ffcc;
+  --accent-coral-glow: rgba(0, 255, 204, 0.25);
+  --accent-amber: #ffcc00;
+  --accent-cyan: #00e5ff;
+  --accent-green: #00ff66;
+  --accent-red: #ff3333;
 }
 
 *, *::before, *::after {
@@ -82,6 +139,7 @@ body, html {
 /* Range input styled like studio fader */
 input[type="range"] {
   -webkit-appearance: none;
+  appearance: none;
   background: var(--border-medium);
   height: 4px;
   border-radius: 2px;
@@ -91,12 +149,13 @@ input[type="range"] {
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
+  appearance: none;
   width: 12px;
   height: 12px;
   border-radius: 50%;
   background: var(--accent-coral);
   border: 2px solid var(--bg-primary);
-  box-shadow: 0 0 8px rgba(255, 122, 101, 0.6);
+  box-shadow: 0 0 8px var(--accent-coral-glow);
   cursor: pointer;
   transition: transform 0.1s ease;
 }
@@ -113,7 +172,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .studio-btn-base:hover {
   background-color: var(--bg-surface-hover) !important;
   border-color: var(--border-strong) !important;
-  color: #ffffff !important;
+  color: var(--text-primary) !important;
 }
 
 .studio-btn-base:active {
@@ -125,7 +184,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 .studio-btn-coral:hover {
-  box-shadow: 0 0 16px rgba(255, 122, 101, 0.6) !important;
+  box-shadow: 0 0 16px var(--accent-coral-glow) !important;
   filter: brightness(1.08);
 }
 
@@ -136,8 +195,8 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .scale-lab-btn-off:hover {
   border-color: var(--accent-coral) !important;
   color: var(--accent-coral) !important;
-  background-color: rgba(255, 122, 101, 0.1) !important;
-  box-shadow: 0 0 8px rgba(255, 122, 101, 0.2) !important;
+  background-color: var(--accent-coral-glow) !important;
+  box-shadow: 0 0 8px var(--accent-coral-glow) !important;
 }
 
 /* Scale Lab Bar Scroll Styling */
@@ -172,5 +231,90 @@ input[type="range"]::-webkit-slider-thumb:hover {
   }
   to {
     opacity: 1;
+  }
+}
+
+/* Tablet Responsive Rules (Music Stand view: 768px - 1024px) */
+@media (max-width: 1024px) {
+  /* Tablet header adjustments */
+  .topnav-header {
+    height: auto !important;
+    min-height: 60px !important;
+    padding: 8px 14px !important;
+    gap: 12px !important;
+    flex-wrap: wrap !important;
+  }
+
+  .topnav-title-bar {
+    max-width: 100% !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .topnav-song-title {
+    max-width: 280px !important;
+    font-size: 15px !important;
+  }
+
+  /* Telemetry bar tablet layout */
+  .telemetry-transport-row {
+    height: auto !important;
+    min-height: 52px !important;
+    padding: 8px 12px !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    justify-content: space-between !important;
+  }
+
+  .telemetry-left-cluster,
+  .telemetry-center-cluster,
+  .telemetry-right-cluster {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  /* Compact HUD left panels for highway & fretboard on tablet */
+  .stage-hud-left-panel {
+    width: 155px !important;
+    min-width: 155px !important;
+    padding: 8px !important;
+  }
+
+  .stage-legend-footer {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    font-size: 9px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .topnav-song-title {
+    max-width: 200px !important;
+    font-size: 13.5px !important;
+  }
+
+  .stage-hud-left-panel {
+    width: 125px !important;
+    min-width: 125px !important;
+    padding: 6px !important;
+  }
+
+  .telemetry-transport-row {
+    justify-content: center !important;
+  }
+}
+
+/* Touch Device Target Sizing (Music stand with fingers) */
+@media (pointer: coarse) {
+  button, select, input[type="range"] {
+    touch-action: manipulation;
+  }
+
+  .studio-btn-base,
+  .studio-btn-coral,
+  .scale-lab-btn-off {
+    min-height: 38px;
+    padding-top: 6px;
+    padding-bottom: 6px;
   }
 }

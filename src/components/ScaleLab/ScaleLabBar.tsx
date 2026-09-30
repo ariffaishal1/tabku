@@ -57,14 +57,14 @@ export const ScaleLabBar: React.FC<ScaleLabBarProps> = ({
             top: 0,
             bottom: 0,
             width: '32px',
-            background: 'linear-gradient(to right, #161212 55%, rgba(22, 18, 18, 0))',
+            background: 'linear-gradient(to right, var(--bg-surface) 55%, transparent)',
             border: 'none',
             zIndex: 10,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-start',
             paddingLeft: '6px',
-            color: '#FF7A65',
+            color: 'var(--accent-coral)',
             fontSize: '14px',
             fontWeight: 900,
             cursor: 'pointer',
@@ -87,8 +87,8 @@ export const ScaleLabBar: React.FC<ScaleLabBarProps> = ({
           gap: '6px',
           padding: '0 16px',
           height: '36px',
-          backgroundColor: '#161212',
-          borderBottom: isScaleMode ? '1px solid #2a2020' : '1px solid transparent',
+          backgroundColor: 'var(--bg-surface)',
+          borderBottom: isScaleMode ? '1px solid var(--border-subtle)' : '1px solid transparent',
           boxSizing: 'border-box',
           fontFamily: 'var(--font-mono)',
           overflowX: isScaleMode ? 'auto' : 'hidden',
@@ -101,7 +101,7 @@ export const ScaleLabBar: React.FC<ScaleLabBarProps> = ({
           style={{
             fontSize: '9px',
             fontWeight: 900,
-            color: '#FF7A65',
+            color: 'var(--accent-coral)',
             letterSpacing: '1px',
             marginRight: '4px',
             whiteSpace: 'nowrap',
@@ -110,19 +110,19 @@ export const ScaleLabBar: React.FC<ScaleLabBarProps> = ({
           🗺️ SCALE LAB
         </span>
 
-        <span style={{ color: '#2a2020', fontSize: '10px' }}>|</span>
+        <span style={{ color: 'var(--border-strong)', fontSize: '10px' }}>|</span>
 
         {/* Root Note Selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '9px', color: '#6a5f5f', fontWeight: 700 }}>ROOT</span>
+          <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 700 }}>ROOT</span>
           <select
             id="scale-root-select"
             value={scaleRoot}
             onChange={(e) => onScaleConfigChange(parseInt(e.target.value, 10), scaleId)}
             style={{
-              backgroundColor: '#1d1717',
-              color: '#FF7A65',
-              border: '1px solid #362c2c',
+              backgroundColor: 'var(--bg-control)',
+              color: 'var(--accent-coral)',
+              border: '1px solid var(--border-medium)',
               borderRadius: '4px',
               padding: '2px 6px',
               fontSize: '10px',
@@ -142,15 +142,15 @@ export const ScaleLabBar: React.FC<ScaleLabBarProps> = ({
 
         {/* Scale Type Selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '9px', color: '#6a5f5f', fontWeight: 700 }}>SCALE</span>
+          <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 700 }}>SCALE</span>
           <select
             id="scale-type-select"
             value={scaleId}
             onChange={(e) => onScaleConfigChange(scaleRoot, e.target.value)}
             style={{
-              backgroundColor: '#1d1717',
-              color: '#f0ecec',
-              border: '1px solid #362c2c',
+              backgroundColor: 'var(--bg-control)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-medium)',
               borderRadius: '4px',
               padding: '2px 6px',
               fontSize: '10px',
@@ -168,17 +168,17 @@ export const ScaleLabBar: React.FC<ScaleLabBarProps> = ({
           </select>
         </div>
 
-        <span style={{ color: '#2a2020', fontSize: '10px' }}>|</span>
+        <span style={{ color: 'var(--border-strong)', fontSize: '10px' }}>|</span>
 
         {/* Position / Box Selector (Segmented Pill Cluster) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-          <span style={{ fontSize: '9px', color: '#6a5f5f', fontWeight: 700, marginRight: '2px' }}>POSISI</span>
+          <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 700, marginRight: '2px' }}>POSISI</span>
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              backgroundColor: '#1d1717',
-              border: '1px solid #362c2c',
+              backgroundColor: 'var(--bg-control)',
+              border: '1px solid var(--border-medium)',
               borderRadius: '4px',
               padding: '1px',
               gap: '1px',
@@ -194,8 +194,8 @@ export const ScaleLabBar: React.FC<ScaleLabBarProps> = ({
                   onClick={() => onSetScalePosition(opt.value)}
                   title={opt.label}
                   style={{
-                    backgroundColor: isSelected ? '#8be9fd' : 'transparent',
-                    color: isSelected ? '#120e0e' : '#a89d9d',
+                    backgroundColor: isSelected ? 'var(--accent-cyan)' : 'transparent',
+                    color: isSelected ? 'var(--text-inverse)' : 'var(--text-secondary)',
                     border: 'none',
                     borderRadius: '3px',
                     padding: '2px 7px',
@@ -213,16 +213,16 @@ export const ScaleLabBar: React.FC<ScaleLabBarProps> = ({
           </div>
         </div>
 
-        <span style={{ color: '#2a2020', fontSize: '10px' }}>|</span>
+        <span style={{ color: 'var(--border-strong)', fontSize: '10px' }}>|</span>
 
         {/* Degrees / Note Names Toggle */}
         <button
           onClick={onToggleDisplayMode}
           title="Toggle antara Scale Degrees (R, ♭3, 5) dan Nama Not (A, C, D...)"
           style={{
-            backgroundColor: '#1d1717',
-            color: scaleDisplayMode === 'degrees' ? '#f1fa8c' : '#8be9fd',
-            border: '1px solid #362c2c',
+            backgroundColor: 'var(--bg-control)',
+            color: scaleDisplayMode === 'degrees' ? 'var(--accent-amber)' : 'var(--accent-cyan)',
+            border: '1px solid var(--border-medium)',
             borderRadius: '4px',
             padding: '3px 8px',
             fontSize: '9.5px',
@@ -242,12 +242,12 @@ export const ScaleLabBar: React.FC<ScaleLabBarProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '5px',
-              backgroundColor: 'rgba(255, 122, 101, 0.08)',
-              border: '1px solid rgba(255, 122, 101, 0.25)',
+              backgroundColor: 'var(--accent-coral-glow)',
+              border: '1px solid var(--border-medium)',
               borderRadius: '4px',
               padding: '2px 8px',
               fontSize: '9px',
-              color: '#ffb86c',
+              color: 'var(--accent-amber)',
               fontWeight: 700,
               whiteSpace: 'nowrap',
               marginLeft: '4px',
@@ -279,19 +279,19 @@ export const ScaleLabBar: React.FC<ScaleLabBarProps> = ({
             top: 0,
             bottom: 0,
             width: '32px',
-            background: 'linear-gradient(to left, #161212 55%, rgba(22, 18, 18, 0))',
+            background: 'linear-gradient(to left, var(--bg-surface) 55%, transparent)',
             border: 'none',
             zIndex: 10,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-end',
             paddingRight: '6px',
-            color: '#FF7A65',
+            color: 'var(--accent-coral)',
             fontSize: '14px',
             fontWeight: 900,
             cursor: 'pointer',
             outline: 'none',
-            boxShadow: '-2px 0 8px rgba(0,0,0,0.5)',
+            boxShadow: '-2px 0 8px rgba(0,0,0,0.3)',
           }}
           title="Scroll ke kanan (opsi Scale Lab lainnya)"
         >

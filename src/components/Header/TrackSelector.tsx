@@ -25,10 +25,11 @@ export const TrackSelector: React.FC<TrackSelectorProps> = ({
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
-        padding: '6px 20px',
-        backgroundColor: '#161212',
-        borderBottom: '1px solid #282121',
+        padding: '6px 16px',
+        backgroundColor: 'var(--bg-surface)',
+        borderBottom: '1px solid var(--border-subtle)',
         overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch',
         boxSizing: 'border-box',
         userSelect: 'none',
       }}
@@ -38,16 +39,17 @@ export const TrackSelector: React.FC<TrackSelectorProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
-          marginRight: '8px',
+          marginRight: '6px',
           fontSize: '10px',
           fontWeight: '800',
-          color: '#8c7d7d',
+          color: 'var(--text-muted)',
           letterSpacing: '0.8px',
           fontFamily: 'var(--font-mono)',
           whiteSpace: 'nowrap',
+          flexShrink: 0,
         }}
       >
-        <Layers size={13} color="#FF7A65" />
+        <Layers size={13} color="var(--accent-coral)" />
         <span>TRACK FLOW:</span>
       </div>
 
@@ -64,11 +66,11 @@ export const TrackSelector: React.FC<TrackSelectorProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '4px 10px',
+                padding: '5px 10px',
                 borderRadius: '4px',
-                border: `1px solid ${isActive ? '#FF7A65' : '#302626'}`,
-                backgroundColor: isActive ? 'rgba(255, 122, 101, 0.15)' : '#1e1818',
-                boxShadow: isActive ? '0 0 12px rgba(255, 122, 101, 0.25)' : 'none',
+                border: `1px solid ${isActive ? 'var(--accent-coral)' : 'var(--border-subtle)'}`,
+                backgroundColor: isActive ? 'var(--accent-coral-glow)' : 'var(--bg-surface-elevated)',
+                boxShadow: isActive ? '0 0 12px var(--accent-coral-glow)' : 'none',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
@@ -79,8 +81,8 @@ export const TrackSelector: React.FC<TrackSelectorProps> = ({
                   width: '6px',
                   height: '6px',
                   borderRadius: '50%',
-                  backgroundColor: isActive ? '#FF7A65' : '#574c4c',
-                  boxShadow: isActive ? '0 0 6px #FF7A65' : 'none',
+                  backgroundColor: isActive ? 'var(--accent-coral)' : 'var(--border-strong)',
+                  boxShadow: isActive ? '0 0 6px var(--accent-coral)' : 'none',
                 }}
               />
 
@@ -88,7 +90,7 @@ export const TrackSelector: React.FC<TrackSelectorProps> = ({
                 style={{
                   fontSize: '11.5px',
                   fontWeight: isActive ? 700 : 500,
-                  color: isActive ? '#ffffff' : '#b0a4a4',
+                  color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                   whiteSpace: 'nowrap',
                   fontFamily: 'var(--font-mono)',
                 }}
@@ -101,11 +103,11 @@ export const TrackSelector: React.FC<TrackSelectorProps> = ({
                 style={{
                   fontSize: '9px',
                   fontFamily: 'var(--font-mono)',
-                  color: isActive ? '#FF7A65' : '#726666',
+                  color: isActive ? 'var(--accent-coral)' : 'var(--text-muted)',
                   padding: '1px 4px',
                   borderRadius: '2px',
-                  backgroundColor: '#120e0e',
-                  border: '1px solid #2e2424',
+                  backgroundColor: 'var(--bg-primary)',
+                  border: '1px solid var(--border-medium)',
                 }}
               >
                 {track.stringCount}S
@@ -128,7 +130,7 @@ export const TrackSelector: React.FC<TrackSelectorProps> = ({
                     borderRadius: '2px',
                     border: 'none',
                     background: track.isMuted ? 'rgba(239, 68, 68, 0.3)' : 'transparent',
-                    color: track.isMuted ? '#ff5555' : '#726666',
+                    color: track.isMuted ? 'var(--accent-red)' : 'var(--text-muted)',
                     cursor: 'pointer',
                   }}
                 >
@@ -151,9 +153,9 @@ export const TrackSelector: React.FC<TrackSelectorProps> = ({
                     justifyContent: 'center',
                     padding: '1px 4px',
                     borderRadius: '2px',
-                    border: `1px solid ${track.isSolo ? '#FF7A65' : '#3d3232'}`,
-                    background: track.isSolo ? '#FF7A65' : 'transparent',
-                    color: track.isSolo ? '#120e0e' : '#726666',
+                    border: `1px solid ${track.isSolo ? 'var(--accent-coral)' : 'var(--border-medium)'}`,
+                    background: track.isSolo ? 'var(--accent-coral)' : 'transparent',
+                    color: track.isSolo ? 'var(--text-inverse)' : 'var(--text-muted)',
                     fontSize: '9px',
                     fontWeight: 800,
                     fontFamily: 'var(--font-mono)',

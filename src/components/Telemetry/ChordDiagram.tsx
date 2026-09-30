@@ -7,6 +7,10 @@ interface ChordDiagramProps {
   numStrings?: number;
   width?: number;
   height?: number;
+  accentColor?: string;
+  dotTextColor?: string;
+  fretColor?: string;
+  nutColor?: string;
 }
 
 /**
@@ -20,8 +24,14 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
   numStrings = 6,
   width = 80,
   height = 92,
+  accentColor = '#FF7A65',
+  dotTextColor,
+  fretColor = '#3a3232',
+  nutColor = '#c5b8b8',
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const resolvedDotTextColor = dotTextColor || (accentColor === '#b83a24' ? '#ffffff' : '#120e0e');
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -69,7 +79,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
 
     // Draw chord name if provided
     if (chordName) {
-      ctx.fillStyle = '#FF7A65';
+      ctx.fillStyle = accentColor;
       ctx.font = '800 9px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
@@ -78,11 +88,11 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
 
     // Draw nut (thick line at top) if baseFret is 1
     if (baseFret === 1) {
-      ctx.fillStyle = '#c5b8b8';
+      ctx.fillStyle = nutColor;
       ctx.fillRect(leftMargin - 1, topMargin - 2.5, fretboardW + 2, 3.5);
     } else {
       // Show base fret number on the left of the 1st fret box (e.g. "5fr" or "5")
-      ctx.fillStyle = '#c5b8b8';
+      ctx.fillStyle = nutColor;
       ctx.font = '700 8.5px "JetBrains Mono", monospace';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
@@ -96,7 +106,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
       ctx.moveTo(leftMargin, y);
       ctx.lineTo(leftMargin + fretboardW, y);
       ctx.lineWidth = f === 0 ? 1.5 : 0.8;
-      ctx.strokeStyle = f === 0 ? '#5a5050' : '#3a3232';
+      ctx.strokeStyle = f === 0 ? nutColor : fretColor;
       ctx.stroke();
     }
 
@@ -107,7 +117,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
       ctx.moveTo(x, topMargin);
       ctx.lineTo(x, topMargin + fretboardH);
       ctx.lineWidth = 0.8;
-      ctx.strokeStyle = '#3a3232';
+      ctx.strokeStyle = fretColor;
       ctx.stroke();
     }
 
@@ -154,14 +164,14 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
       // Filled dot
       ctx.beginPath();
       ctx.arc(x, y, 4.5, 0, Math.PI * 2);
-      ctx.fillStyle = '#FF7A65';
-      ctx.shadowColor = '#FF7A65';
+      ctx.fillStyle = accentColor;
+      ctx.shadowColor = accentColor;
       ctx.shadowBlur = 4;
       ctx.fill();
       ctx.shadowBlur = 0;
 
       // Fret number inside dot
-      ctx.fillStyle = '#120e0e';
+      ctx.fillStyle = resolvedDotTextColor;
       ctx.font = '800 6px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -169,7 +179,7 @@ export const ChordDiagram: React.FC<ChordDiagramProps> = ({
     });
 
     ctx.restore();
-  }, [notes, chordName, numStrings, width, height]);
+  }, [notes, chordName, numStrings, width, height, accentColor, resolvedDotTextColor, fretColor, nutColor]);
 
   if (notes.length < 2) return null; // Only show for chords (2+ notes)
 

@@ -1,7 +1,8 @@
 import React, { useRef } from 'react';
 import { PRESET_SONGS } from '../../services/presetTabs';
-import { Upload, ChevronDown } from 'lucide-react';
+import { Upload, ChevronDown, Palette } from 'lucide-react';
 import { midiToNoteName } from '../../utils/guitarMath';
+import type { ThemeId, ThemeOption } from '../../types/theme';
 
 interface TopNavProps {
   songTitle: string;
@@ -18,6 +19,9 @@ interface TopNavProps {
   onToggleScaleMode?: () => void;
   onOpenShortcuts?: () => void;
   isLoadingScore?: boolean;
+  themeId?: ThemeId;
+  themeOptions?: ThemeOption[];
+  onSelectTheme?: (themeId: ThemeId) => void;
 }
 
 export const TopNav: React.FC<TopNavProps> = ({
@@ -35,6 +39,9 @@ export const TopNav: React.FC<TopNavProps> = ({
   onToggleScaleMode,
   onOpenShortcuts,
   isLoadingScore = false,
+  themeId = 'cyber-neon',
+  themeOptions = [],
+  onSelectTheme,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,8 +90,6 @@ export const TopNav: React.FC<TopNavProps> = ({
 
   const tuningName = getTuningName(tuning);
   // Tuning notes formatted (e.g. "B  F#  B  E  G#  C#")
-  // AlphaTab tuning is ordered [highest string ... lowest string]
-  // In guitar tab tuning display, usually ordered lowest string to highest: e.g. E A D G B E or B F# B E G# C#
   const reversedTuning = [...tuning].reverse();
   const tuningNotesFormatted = reversedTuning
     .map((p) => midiToNoteName(p).replace(/\d/, ''))
@@ -92,28 +97,29 @@ export const TopNav: React.FC<TopNavProps> = ({
 
   return (
     <header
+      className="topnav-header"
       style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 20px',
         height: '70px',
-        backgroundColor: '#120e0e',
-        borderBottom: '1px solid #282121',
+        backgroundColor: 'var(--bg-primary)',
+        borderBottom: '1px solid var(--border-subtle)',
         gap: '20px',
         userSelect: 'none',
         boxSizing: 'border-box',
       }}
     >
       {/* 1. Left: Cyber Studio Breadcrumb & Big Title */}
-      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
         {/* Breadcrumb */}
         <div
           style={{
             fontSize: '9.5px',
             fontFamily: 'var(--font-mono)',
             fontWeight: 800,
-            color: '#8c7d7d',
+            color: 'var(--text-muted)',
             letterSpacing: '1px',
             display: 'flex',
             alignItems: 'center',
@@ -121,32 +127,33 @@ export const TopNav: React.FC<TopNavProps> = ({
             marginBottom: '2px',
           }}
         >
-          <span style={{ color: '#FF7A65' }}>\\</span>
+          <span style={{ color: 'var(--accent-coral)' }}>\\</span>
           <span>{tuning.length}-STRING</span>
-          <span style={{ color: '#524545' }}>/</span>
+          <span style={{ color: 'var(--border-strong)' }}>/</span>
           <span>STRING FLOW</span>
-          <span style={{ color: '#524545' }}>/</span>
-          <span style={{ color: '#FF7A65' }}>{activeTrackName.toUpperCase()}</span>
+          <span style={{ color: 'var(--border-strong)' }}>/</span>
+          <span style={{ color: 'var(--accent-coral)' }}>{activeTrackName.toUpperCase()}</span>
         </div>
 
         {/* Big Track Title & Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div className="topnav-title-bar" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <h1
+            className="topnav-song-title"
             style={{
               margin: 0,
               fontSize: '18px',
               fontWeight: 900,
               fontFamily: 'var(--font-mono)',
               letterSpacing: '0.5px',
-              color: '#ffffff',
+              color: 'var(--text-primary)',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              maxWidth: '380px',
+              maxWidth: '360px',
             }}
             title={`${songArtist} \\ ${songTitle}`}
           >
-            {songArtist.toUpperCase()} <span style={{ color: '#FF7A65' }}>\\</span> {songTitle.toUpperCase()}
+            {songArtist.toUpperCase()} <span style={{ color: 'var(--accent-coral)' }}>\\</span> {songTitle.toUpperCase()}
           </h1>
 
           {/* Preset Selector Dropdown */}
@@ -157,11 +164,11 @@ export const TopNav: React.FC<TopNavProps> = ({
               className="studio-btn-base"
               style={{
                 appearance: 'none',
-                backgroundColor: '#1d1717',
-                color: '#d4c7c7',
-                border: '1px solid #3d3232',
+                backgroundColor: 'var(--bg-control)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-medium)',
                 borderRadius: '4px',
-                padding: '4px 24px 4px 10px',
+                padding: '5px 24px 5px 10px',
                 fontSize: '11px',
                 fontWeight: 600,
                 fontFamily: 'var(--font-mono)',
@@ -178,7 +185,7 @@ export const TopNav: React.FC<TopNavProps> = ({
             </select>
             <ChevronDown
               size={12}
-              color="#a09191"
+              color="var(--text-muted)"
               style={{
                 position: 'absolute',
                 right: '8px',
@@ -204,11 +211,11 @@ export const TopNav: React.FC<TopNavProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '5px',
-              padding: '4px 10px',
+              padding: '5px 10px',
               borderRadius: '4px',
-              border: '1px solid #3d3232',
-              backgroundColor: '#1d1717',
-              color: '#d4c7c7',
+              border: '1px solid var(--border-medium)',
+              backgroundColor: 'var(--bg-control)',
+              color: 'var(--text-secondary)',
               fontSize: '11px',
               fontWeight: 700,
               fontFamily: 'var(--font-mono)',
@@ -224,6 +231,48 @@ export const TopNav: React.FC<TopNavProps> = ({
             <span>{isLoadingScore ? 'MEMUAT...' : 'BUKA .GP'}</span>
           </button>
 
+          {/* Theme Selector (FR-NEXT-08) */}
+          {onSelectTheme && themeOptions.length > 0 && (
+            <div style={{ position: 'relative' }}>
+              <select
+                value={themeId}
+                onChange={(e) => onSelectTheme(e.target.value as ThemeId)}
+                className="studio-btn-base"
+                style={{
+                  appearance: 'none',
+                  backgroundColor: 'var(--bg-control)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border-medium)',
+                  borderRadius: '4px',
+                  padding: '5px 24px 5px 8px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-mono)',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+                title="Pilih Tema Studio (Cyber Neon / Classic Parchment / Stealth Black)"
+              >
+                {themeOptions.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.icon} {t.name.toUpperCase()}
+                  </option>
+                ))}
+              </select>
+              <Palette
+                size={12}
+                color="var(--accent-coral)"
+                style={{
+                  position: 'absolute',
+                  right: '7px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  pointerEvents: 'none',
+                }}
+              />
+            </div>
+          )}
+
           {/* Keyboard Shortcuts Help Button */}
           {onOpenShortcuts && (
             <button
@@ -234,11 +283,11 @@ export const TopNav: React.FC<TopNavProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '5px',
-                padding: '4px 9px',
+                padding: '5px 9px',
                 borderRadius: '4px',
-                border: '1px solid #3d3232',
-                backgroundColor: '#1d1717',
-                color: '#d4c7c7',
+                border: '1px solid var(--border-medium)',
+                backgroundColor: 'var(--bg-control)',
+                color: 'var(--text-secondary)',
                 fontSize: '11px',
                 fontWeight: 700,
                 fontFamily: 'var(--font-mono)',
@@ -251,9 +300,9 @@ export const TopNav: React.FC<TopNavProps> = ({
                 style={{
                   fontSize: '9px',
                   fontWeight: 900,
-                  color: '#FF7A65',
-                  backgroundColor: 'rgba(255, 122, 101, 0.15)',
-                  border: '1px solid rgba(255, 122, 101, 0.3)',
+                  color: 'var(--accent-coral)',
+                  backgroundColor: 'var(--accent-coral-glow)',
+                  border: '1px solid var(--accent-coral)',
                   borderRadius: '3px',
                   padding: '0 4px',
                   lineHeight: '13px',
@@ -273,16 +322,16 @@ export const TopNav: React.FC<TopNavProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '5px',
-              padding: '4px 10px',
+              padding: '5px 10px',
               borderRadius: '4px',
-              border: isScaleMode ? '1px solid #FF7A65' : '1px solid #3d3232',
-              backgroundColor: isScaleMode ? '#FF7A65' : '#1d1717',
-              color: isScaleMode ? '#120e0e' : '#a89d9d',
+              border: isScaleMode ? '1px solid var(--accent-coral)' : '1px solid var(--border-medium)',
+              backgroundColor: isScaleMode ? 'var(--accent-coral)' : 'var(--bg-control)',
+              color: isScaleMode ? 'var(--text-inverse)' : 'var(--text-secondary)',
               fontSize: '11px',
               fontWeight: 800,
               fontFamily: 'var(--font-mono)',
               cursor: 'pointer',
-              boxShadow: isScaleMode ? '0 0 10px rgba(255, 122, 101, 0.4)' : 'none',
+              boxShadow: isScaleMode ? '0 0 10px var(--accent-coral-glow)' : 'none',
             }}
           >
             <span>🗺️</span>
@@ -291,19 +340,20 @@ export const TopNav: React.FC<TopNavProps> = ({
         </div>
       </div>
 
-      {/* 2. Right: Develop Device Studio Coral Red Tuning Card */}
+      {/* 2. Right: Develop Device Studio Tuning Card */}
       <div
         style={{
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
-          backgroundColor: '#FF7A65',
+          backgroundColor: 'var(--accent-coral)',
           borderRadius: '4px',
           padding: '6px 14px',
-          minWidth: '170px',
-          color: '#120e0e',
-          boxShadow: '0 0 16px rgba(255, 122, 101, 0.3)',
+          minWidth: '160px',
+          color: 'var(--text-inverse)',
+          boxShadow: '0 0 16px var(--accent-coral-glow)',
           boxSizing: 'border-box',
+          flexShrink: 0,
         }}
       >
         <div
@@ -320,7 +370,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           <span>
             {tuningName}
             {transpose !== 0 && (
-              <span style={{ marginLeft: '4px', fontSize: '9.5px', opacity: 0.9, backgroundColor: 'rgba(0,0,0,0.15)', padding: '1px 4px', borderRadius: '3px' }}>
+              <span style={{ marginLeft: '4px', fontSize: '9.5px', opacity: 0.9, backgroundColor: 'rgba(0,0,0,0.18)', padding: '1px 4px', borderRadius: '3px' }}>
                 {transpose > 0 ? `+${transpose}` : transpose}st
               </span>
             )}
@@ -353,7 +403,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           }}
         >
           <span>METER: {timeSignature}</span>
-          <span>DEVELOP DEVICE STYLE</span>
+          <span>TABKU STUDIO</span>
         </div>
       </div>
     </header>

@@ -2,13 +2,13 @@
 
 @keyframes pulsePlayBtn {
   0% {
-    box-shadow: 0 0 10px rgba(255, 122, 101, 0.35);
+    box-shadow: 0 0 10px var(--accent-coral-glow);
   }
   50% {
-    box-shadow: 0 0 24px rgba(255, 122, 101, 0.75), 0 0 6px rgba(255, 122, 101, 0.9);
+    box-shadow: 0 0 24px var(--accent-coral-glow), 0 0 6px var(--accent-coral);
   }
   100% {
-    box-shadow: 0 0 10px rgba(255, 122, 101, 0.35);
+    box-shadow: 0 0 10px var(--accent-coral-glow);
   }
 }
 
@@ -74,7 +74,7 @@
 }
 
 .shimmer-bar {
-  background: linear-gradient(90deg, rgba(255,122,101,0.1) 25%, rgba(255,122,101,0.3) 50%, rgba(255,122,101,0.1) 75%);
+  background: linear-gradient(90deg, var(--accent-coral-glow) 25%, var(--accent-coral) 50%, var(--accent-coral-glow) 75%);
   background-size: 200% 100%;
   animation: shimmerLoading 1.5s infinite;
 }

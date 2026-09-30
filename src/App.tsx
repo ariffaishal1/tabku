@@ -10,9 +10,10 @@ import {
   type SongTimeline,
   type ExtractedNote,
   getCurrentAndNextBeats,
+  findPrevSection,
+  findNextSection,
 } from './services/timelineExtractor';
-import { generateBackingTrackTex } from './services/scaleTheory';
-import type { TabNote, TrackInfo, ActiveChord, ActiveTechnique } from './types/guitar';
+import type { TabNote, ActiveChord, ActiveTechnique } from './types/guitar';
 import { KeyboardShortcutsModal } from './components/Modals/KeyboardShortcutsModal';
 import { ScaleLabBar } from './components/ScaleLab/ScaleLabBar';
 import { CountInOverlay } from './components/Overlays/CountInOverlay';
@@ -27,55 +28,62 @@ import { useABLoop } from './hooks/useABLoop';
 import { useSpeedTrainer } from './hooks/useSpeedTrainer';
 import { useScaleLab } from './hooks/useScaleLab';
 import { useToast } from './hooks/useToast';
+import { useAnimationLoop } from './hooks/useAnimationLoop';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useEngineState } from './hooks/useEngineState';
+import { useSongControls } from './hooks/useSongControls';
+import { useTheme } from './hooks/useTheme';
 
 export const App: React.FC = () => {
   const alphaTabRef = useRef<AlphaTabSheetRef>(null);
-
-  // ──────────────────────────────────────────────
-  // Song & Track State
-  // ──────────────────────────────────────────────
-  const [selectedPresetId, setSelectedPresetId] = useState(PRESET_SONGS[0].id);
-  const [songTitle, setSongTitle] = useState(PRESET_SONGS[0].title);
-  const [songArtist, setSongArtist] = useState(PRESET_SONGS[0].artist);
-  const [tempo, setTempo] = useState(PRESET_SONGS[0].tempo);
-  const [tracks, setTracks] = useState<TrackInfo[]>([]);
-  const [activeTrackIndex, setActiveTrackIndex] = useState(0);
-  const [transpose, setTranspose] = useState(0);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 
-  // Audio Engine & Loading States
-  const [isEngineLoading, setIsEngineLoading] = useState(true);
-  const [soundFontProgress, setSoundFontProgress] = useState(15);
-  const [soundFontStatus, setSoundFontStatus] = useState('Mengunduh SoundFont Sonivox...');
-  const [soundFontError, setSoundFontError] = useState<string | null>(null);
-  const [isLoadingScore, setIsLoadingScore] = useState(false);
-
-  // Central Toast Notifier
+  // ──────────────────────────────────────────────
+  // Core domain hooks
+  // ──────────────────────────────────────────────
+  const theme = useTheme();
   const toast = useToast();
-
-  // ──────────────────────────────────────────────
-  // Custom Hooks
-  // ──────────────────────────────────────────────
   const playback = usePlayback(alphaTabRef);
-  const met = useMetronome(tempo, playback.speed, alphaTabRef, playback.currentTimeMsRef);
+  const scaleLab = useScaleLab(PRESET_SONGS[0].tempo);
+
+  // Engine (SoundFont / score loading) state
+  const engine = useEngineState();
+
+  // Song & track state + handlers
+  // Note: met functions passed here are stable refs set up below via useCallback stubs;
+  // they are only ever called from user-interaction handlers (never during render/init).
+  const cancelCountInRef = useRef<() => void>(() => {});
+  const resetLastScheduledBeatRef = useRef<(ms?: number) => void>(() => {});
+  const clearABLoopRef = useRef<() => void>(() => {});
+
+  const song = useSongControls({
+    alphaTabRef,
+    cancelCountIn: useCallback((...args) => cancelCountInRef.current(...args), []),
+    resetLastScheduledBeat: useCallback((...args) => resetLastScheduledBeatRef.current(...args), []),
+    clearABLoop: useCallback((...args) => clearABLoopRef.current(...args), []),
+    resetSync: playback.resetSync,
+    setTimeline: (t) => { setTimeline(t); },
+    isScaleMode: scaleLab.isScaleMode,
+    setIsScaleMode: scaleLab.setIsScaleMode,
+    scaleRoot: scaleLab.scaleRoot,
+    scaleId: scaleLab.scaleId,
+    setBackingProgressionName: scaleLab.setBackingProgressionName,
+    showSuccess: toast.showSuccess,
+    showInfo: toast.showInfo,
+    showError: toast.showError,
+  });
+
+  const met = useMetronome(song.tempo, playback.speed, alphaTabRef, playback.currentTimeMsRef);
   const abLoop = useABLoop(
     playback.currentTimeMsRef, playback.durationSec,
     playback.isLooping, playback.setIsLooping, alphaTabRef,
   );
   const speedTrainer = useSpeedTrainer(playback.changeSpeed, playback.speedRef);
-  const scaleLab = useScaleLab(tempo);
 
-  // Destructure stable function references to use in deps arrays
-  const { seek: playbackSeek, resetSync, changeSpeed, durationSec: playbackDurationSec,
-          lastSyncRef, currentTimeMsRef, speedRef, setCurrentTimeMs: playbackSetCurrentTimeMs,
-          setIsFlipped } = playback;
-  const { cancelCountIn, resetLastScheduledBeat, startCountIn, resumeAudio, toggleMetronome, scheduleClicks, isCountingInRef } = met;
-  const { clearABLoop, checkBoundary, handleSetLoopA, handleSetLoopB, updateLoopA, updateLoopB, loopARef, loopBRef } = abLoop;
-  const { toggleScaleMode, updateScaleConfig } = scaleLab;
-  const { isSpeedTrainerRef, triggerStepRef,
-          setIsSpeedTrainer: speedTrainerSetIsSpeedTrainer,
-          setNotification: speedTrainerSetNotification,
-          setLoopCount: speedTrainerSetLoopCount } = speedTrainer;
+  // Wire the forward-refs now that met and abLoop are available
+  useEffect(() => { cancelCountInRef.current = met.cancelCountIn; }, [met.cancelCountIn]);
+  useEffect(() => { resetLastScheduledBeatRef.current = met.resetLastScheduledBeat; }, [met.resetLastScheduledBeat]);
+  useEffect(() => { clearABLoopRef.current = abLoop.clearABLoop; }, [abLoop.clearABLoop]);
 
   // ──────────────────────────────────────────────
   // Real-time Song Timeline
@@ -88,11 +96,11 @@ export const App: React.FC = () => {
   useEffect(() => { timelineRef.current = timeline; }, [timeline]);
 
   // Active track derived data
-  const activeTrack = tracks.find((t) => t.index === activeTrackIndex) || tracks[0];
+  const activeTrack = song.tracks.find((t) => t.index === song.activeTrackIndex) || song.tracks[0];
   const activeTuning = activeTrack?.tuning || [64, 59, 55, 50, 45, 40];
   const activeTuningNames = activeTrack?.tuningNames || ['E4', 'B3', 'G3', 'D3', 'A2', 'E2'];
 
-  // Derive active NOW and NEXT beat states
+  // Derive NOW and NEXT beat states
   const beatState = useMemo(() => {
     if (!timeline) return null;
     return getCurrentAndNextBeats(timeline, playback.currentTimeMs);
@@ -118,17 +126,33 @@ export const App: React.FC = () => {
   const currentBarIndex = beatState?.barIndex || 1;
 
   // ──────────────────────────────────────────────
-  // Orchestration Handlers (cross-cutting concerns)
+  // Cross-cutting orchestration handlers
   // ──────────────────────────────────────────────
   const handleSeek = useCallback((seconds: number) => {
-    cancelCountIn();
-    playbackSeek(seconds);
-    resetLastScheduledBeat(seconds * 1000);
-  }, [cancelCountIn, playbackSeek, resetLastScheduledBeat]);
+    met.cancelCountIn();
+    playback.seek(seconds);
+    met.resetLastScheduledBeat(seconds * 1000);
+  }, [met, playback]);
+
+  const handlePrevSection = useCallback(() => {
+    if (!timeline?.sections || timeline.sections.length === 0) return;
+    const prev = findPrevSection(timeline.sections, playback.currentTimeMsRef.current ?? 0);
+    if (prev) {
+      handleSeek(prev.startMs / 1000);
+    }
+  }, [timeline, handleSeek, playback.currentTimeMsRef]);
+
+  const handleNextSection = useCallback(() => {
+    if (!timeline?.sections || timeline.sections.length === 0) return;
+    const next = findNextSection(timeline.sections, playback.currentTimeMsRef.current ?? 0);
+    if (next) {
+      handleSeek(next.startMs / 1000);
+    }
+  }, [timeline, handleSeek, playback.currentTimeMsRef]);
 
   const handlePlayPause = useCallback(() => {
-    if (isCountingInRef.current) {
-      cancelCountIn();
+    if (met.isCountingInRef.current) {
+      met.cancelCountIn();
       return;
     }
     if (playback.isPlaying) {
@@ -136,287 +160,113 @@ export const App: React.FC = () => {
       return;
     }
     if (met.isCountInEnabled) {
-      startCountIn();
+      met.startCountIn();
     } else {
-      resumeAudio();
-      resetLastScheduledBeat(currentTimeMsRef.current ?? 0);
+      met.resumeAudio();
+      met.resetLastScheduledBeat(playback.currentTimeMsRef.current ?? 0);
       alphaTabRef.current?.playPause();
     }
-  }, [playback.isPlaying, met.isCountInEnabled, startCountIn, cancelCountIn,
-      resumeAudio, resetLastScheduledBeat, isCountingInRef, currentTimeMsRef]);
+  }, [playback, met]);
 
   const handleStop = useCallback(() => {
-    cancelCountIn();
+    met.cancelCountIn();
     alphaTabRef.current?.stop();
-    resetSync();
-    resetLastScheduledBeat();
+    playback.resetSync();
+    met.resetLastScheduledBeat();
     setActiveNotes([]);
     setActiveChord(null);
     setActiveTechnique(null);
-  }, [cancelCountIn, resetSync, resetLastScheduledBeat]);
-
-  const handleTransposeChange = useCallback((newTranspose: number) => {
-    const clamped = Math.max(-12, Math.min(12, newTranspose));
-    setTranspose(clamped);
-    alphaTabRef.current?.setTranspose(clamped);
-    if (clamped !== 0) {
-      toast.showInfo('Pitch Shifter', `${clamped > 0 ? '+' : ''}${clamped} Semitone`);
-    } else {
-      toast.showInfo('Pitch Shifter', 'Kembali ke nada asli (0 st)');
-    }
-  }, [toast]);
+  }, [met, playback]);
 
   const handleScaleConfigChange = useCallback((newRoot: number, newScaleId: string) => {
-    const backing = updateScaleConfig(newRoot, newScaleId);
-    if (selectedPresetId === 'scale-practice-empty' || scaleLab.isScaleMode) {
-      cancelCountIn();
-      clearABLoop();
+    const backing = scaleLab.updateScaleConfig(newRoot, newScaleId);
+    if (song.selectedPresetId === 'scale-practice-empty' || scaleLab.isScaleMode) {
+      met.cancelCountIn();
+      abLoop.clearABLoop();
       setTimeline(null);
-      resetSync();
-      resetLastScheduledBeat();
+      playback.resetSync();
+      met.resetLastScheduledBeat();
       alphaTabRef.current?.loadTex(backing.tex);
     }
-  }, [selectedPresetId, scaleLab.isScaleMode, updateScaleConfig,
-      cancelCountIn, clearABLoop, resetSync, resetLastScheduledBeat]);
+  }, [song.selectedPresetId, scaleLab, met, abLoop, playback]);
 
-  const handleSelectPreset = (presetId: string) => {
-    const preset = PRESET_SONGS.find((p) => p.id === presetId);
-    if (!preset) return;
-    met.cancelCountIn();
-    abLoop.clearABLoop();
-    setTranspose(0);
-    setSelectedPresetId(presetId);
-    setSongTitle(preset.title);
-    setSongArtist(preset.artist);
-    setTempo(preset.tempo);
-    setTimeline(null);
-    playback.resetSync();
-    met.resetLastScheduledBeat();
-    toast.showSuccess('Preset Dimuat', `${preset.title} · ${preset.artist}`);
-
-    if (presetId === 'scale-practice-empty') {
-      scaleLab.setIsScaleMode(true);
-      const backing = generateBackingTrackTex(scaleLab.scaleRoot, scaleLab.scaleId, preset.tempo);
-      scaleLab.setBackingProgressionName(backing.progressionName);
-      alphaTabRef.current?.loadTex(backing.tex);
-    } else {
-      scaleLab.setIsScaleMode(false);
-      alphaTabRef.current?.loadTex(preset.tex);
-    }
-  };
-
-  const handleFileUpload = (file: File) => {
-    const validExtensions = ['.gp', '.gp5', '.gpx', '.gp4', '.gp3'];
-    const lowerName = file.name.toLowerCase();
-    const isValid = validExtensions.some((ext) => lowerName.endsWith(ext));
-    if (!isValid) {
-      toast.showError(
-        'Format Berkas Tidak Didukung',
-        `Harap pilih berkas Guitar Pro (${validExtensions.join(', ')}).`
-      );
-      return;
-    }
-
-    met.cancelCountIn();
-    abLoop.clearABLoop();
-    setTranspose(0);
-    setSongTitle(file.name.replace(/\.[^/.]+$/, ''));
-    setSongArtist('User Tab Import');
-    setTimeline(null);
-    playback.resetSync();
-    met.resetLastScheduledBeat();
-    toast.showInfo('Membaca Tab', file.name);
-    alphaTabRef.current?.loadFile(file);
-  };
-
-  const handleSelectTrack = (trackIndex: number) => {
-    met.cancelCountIn();
-    abLoop.clearABLoop();
-    setActiveTrackIndex(trackIndex);
-    playback.resetSync();
-    met.resetLastScheduledBeat();
-    alphaTabRef.current?.changeTrack(trackIndex);
-  };
-
-  const handleToggleMute = (trackIndex: number) => {
-    setTracks(prev => prev.map(t =>
-      t.index === trackIndex ? { ...t, isMuted: !t.isMuted } : t
-    ));
-    alphaTabRef.current?.toggleMute(trackIndex);
-  };
-
-  const handleToggleSolo = (trackIndex: number) => {
-    setTracks(prev => prev.map(t =>
-      t.index === trackIndex ? { ...t, isSolo: !t.isSolo } : t
-    ));
-    alphaTabRef.current?.toggleSolo(trackIndex);
-  };
-
-  // Speed Trainer toggle (cross-cutting: reads AB loop refs, sets playback speed)
   const handleToggleSpeedTrainer = useCallback(() => {
     if (speedTrainer.isSpeedTrainer) {
-      speedTrainerSetIsSpeedTrainer(false);
-      speedTrainerSetNotification(null);
+      speedTrainer.setIsSpeedTrainer(false);
+      speedTrainer.setNotification(null);
     } else {
-      speedTrainerSetIsSpeedTrainer(true);
-      speedTrainerSetLoopCount(0);
+      speedTrainer.setIsSpeedTrainer(true);
+      speedTrainer.setLoopCount(0);
 
-      // Ensure an A-B loop range exists
-      if (loopARef.current === null || loopBRef.current === null ||
-          loopBRef.current <= loopARef.current) {
-        const currentSec = (currentTimeMsRef.current ?? 0) / 1000;
+      // Ensure a valid A-B loop range exists
+      if (
+        abLoop.loopARef.current === null ||
+        abLoop.loopBRef.current === null ||
+        abLoop.loopBRef.current <= abLoop.loopARef.current
+      ) {
+        const currentSec = (playback.currentTimeMsRef.current ?? 0) / 1000;
         const startSec = Math.max(0, currentSec);
         const endSec = playback.durationSec > 0
           ? Math.min(playback.durationSec, startSec + 4)
           : startSec + 4;
-        updateLoopA(startSec);
-        updateLoopB(endSec);
+        abLoop.updateLoopA(startSec);
+        abLoop.updateLoopB(endSec);
       }
 
-      // Drop to 50% if at full speed
-      if ((speedRef.current ?? 1) >= 1.0) {
-        changeSpeed(0.5);
-        speedTrainerSetNotification('⚡ SPEED TRAINER AKTIF: Dimulai dari 50% (+5%/loop)');
+      if ((playback.speedRef.current ?? 1) >= 1.0) {
+        playback.changeSpeed(0.5);
+        speedTrainer.setNotification('⚡ SPEED TRAINER AKTIF: Dimulai dari 50% (+5%/loop)');
       } else {
-        speedTrainerSetNotification(
-          `⚡ SPEED TRAINER AKTIF: ${Math.round((speedRef.current ?? 1) * 100)}% ➔ 100%`
+        speedTrainer.setNotification(
+          `⚡ SPEED TRAINER AKTIF: ${Math.round((playback.speedRef.current ?? 1) * 100)}% ➔ 100%`,
         );
       }
     }
-  }, [speedTrainer.isSpeedTrainer, playback.durationSec, changeSpeed,
-      updateLoopA, updateLoopB, loopARef, loopBRef, currentTimeMsRef, speedRef,
-      speedTrainerSetIsSpeedTrainer, speedTrainerSetNotification, speedTrainerSetLoopCount]);
+  }, [speedTrainer, abLoop, playback]);
 
   // ──────────────────────────────────────────────
-  // 60FPS Animation Loop (time interpolation + A-B boundary + metronome)
+  // 60 FPS Animation Loop
   // ──────────────────────────────────────────────
-  const { isPlaying, speed } = playback;
-
-  useEffect(() => {
-    if (!isPlaying) return;
-    let animId: number;
-
-    const loop = () => {
-      const elapsedWallMs = (performance.now() - lastSyncRef.current.wallTime) * speed;
-      const interpolatedMs = Math.max(0, lastSyncRef.current.audioMs + elapsedWallMs);
-
-      // A-B Looper: auto-seek back to A when reaching B
-      const seekTarget = checkBoundary(interpolatedMs);
-      if (seekTarget !== null) {
-        handleSeek(seekTarget);
-        // Speed Trainer: bump tempo on completed loop cycle
-        if (isSpeedTrainerRef.current) {
-          triggerStepRef.current();
-        }
-        animId = requestAnimationFrame(loop);
-        return;
-      }
-
-      // Metronome Click Track: schedule clicks
-      scheduleClicks(interpolatedMs, speed, timelineRef.current);
-
-      playbackSetCurrentTimeMs(interpolatedMs);
-      currentTimeMsRef.current = interpolatedMs;
-      animId = requestAnimationFrame(loop);
-    };
-
-    animId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animId);
-  }, [isPlaying, speed, handleSeek, checkBoundary, scheduleClicks,
-      lastSyncRef, isSpeedTrainerRef, triggerStepRef, playbackSetCurrentTimeMs, currentTimeMsRef]);
+  useAnimationLoop({
+    isPlaying: playback.isPlaying,
+    speed: playback.speed,
+    lastSyncRef: playback.lastSyncRef,
+    currentTimeMsRef: playback.currentTimeMsRef,
+    isSpeedTrainerRef: speedTrainer.isSpeedTrainerRef,
+    triggerStepRef: speedTrainer.triggerStepRef,
+    timelineRef,
+    checkBoundary: abLoop.checkBoundary,
+    scheduleClicks: met.scheduleClicks,
+    onTimeUpdate: playback.setCurrentTimeMs,
+    onSeek: handleSeek,
+  });
 
   // ──────────────────────────────────────────────
   // Keyboard Shortcuts
   // ──────────────────────────────────────────────
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-      if (e.key === '?') {
-        e.preventDefault();
-        setIsShortcutsOpen((prev) => !prev);
-        return;
-      }
-
-      switch (e.code) {
-        case 'Space':
-          e.preventDefault();
-          handlePlayPause();
-          break;
-        case 'Slash':
-          if (e.shiftKey) {
-            e.preventDefault();
-            setIsShortcutsOpen((prev) => !prev);
-          }
-          break;
-        case 'KeyM':
-          e.preventDefault();
-          toggleMetronome();
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          handleSeek(Math.max(0, ((currentTimeMsRef.current ?? 0) / 1000) - 5));
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          handleSeek(Math.min(playbackDurationSec, ((currentTimeMsRef.current ?? 0) / 1000) + 5));
-          break;
-        case 'Minus':
-        case 'NumpadSubtract':
-          e.preventDefault();
-          changeSpeed(Math.max(0.25, playback.speed - 0.1));
-          break;
-        case 'Equal':
-        case 'NumpadAdd':
-          e.preventDefault();
-          changeSpeed(Math.min(2.0, playback.speed + 0.1));
-          break;
-        case 'BracketLeft':
-          e.preventDefault();
-          handleSetLoopA();
-          break;
-        case 'BracketRight':
-          e.preventDefault();
-          handleSetLoopB(handleSeek);
-          break;
-        case 'Backspace':
-          if (loopARef.current !== null || loopBRef.current !== null) {
-            e.preventDefault();
-            clearABLoop();
-          }
-          break;
-        case 'KeyF':
-          e.preventDefault();
-          setIsFlipped((prev) => !prev);
-          break;
-        case 'KeyS':
-          e.preventDefault();
-          toggleScaleMode();
-          break;
-        case 'KeyT':
-          e.preventDefault();
-          handleToggleSpeedTrainer();
-          break;
-        case 'ArrowUp':
-          if (e.shiftKey) {
-            e.preventDefault();
-            handleTransposeChange(transpose + 1);
-          }
-          break;
-        case 'ArrowDown':
-          if (e.shiftKey) {
-            e.preventDefault();
-            handleTransposeChange(transpose - 1);
-          }
-          break;
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePlayPause, handleSeek, toggleMetronome, playbackDurationSec, playback.speed,
-      changeSpeed, handleTransposeChange, transpose, toggleScaleMode,
-      handleToggleSpeedTrainer, handleSetLoopA, handleSetLoopB, clearABLoop,
-      currentTimeMsRef, loopARef, loopBRef, setIsFlipped]);
+  useKeyboardShortcuts({
+    onPlayPause: handlePlayPause,
+    onSeek: handleSeek,
+    onPrevSection: handlePrevSection,
+    onNextSection: handleNextSection,
+    toggleMetronome: met.toggleMetronome,
+    toggleScaleMode: scaleLab.toggleScaleMode,
+    toggleSpeedTrainer: handleToggleSpeedTrainer,
+    onSpeedChange: playback.changeSpeed,
+    onTransposeChange: song.handleTransposeChange,
+    onSetLoopA: abLoop.handleSetLoopA,
+    onSetLoopB: abLoop.handleSetLoopB,
+    onClearABLoop: abLoop.clearABLoop,
+    setIsShortcutsOpen,
+    setIsFlipped: playback.setIsFlipped,
+    currentTimeMsRef: playback.currentTimeMsRef,
+    loopARef: abLoop.loopARef,
+    loopBRef: abLoop.loopBRef,
+    durationSec: playback.durationSec,
+    speed: playback.speed,
+    transpose: song.transpose,
+    onCycleTheme: theme.cycleTheme,
+  });
 
   // ──────────────────────────────────────────────
   // Render
@@ -428,35 +278,38 @@ export const App: React.FC = () => {
         flexDirection: 'column',
         width: '100vw',
         height: '100vh',
-        backgroundColor: '#120e0e',
+        backgroundColor: 'var(--bg-primary)',
         overflow: 'hidden',
       }}
     >
       {/* 1. Header Toolbar */}
       <TopNav
-        songTitle={songTitle}
-        songArtist={songArtist}
+        songTitle={song.songTitle}
+        songArtist={song.songArtist}
         activeTrackName={activeTrack?.name || 'Lead Guitar'}
-        tempo={tempo}
+        tempo={song.tempo}
         timeSignature={met.timeSignature}
         tuning={activeTuning}
-        selectedPresetId={selectedPresetId}
-        onSelectPreset={handleSelectPreset}
-        onFileUpload={handleFileUpload}
-        transpose={transpose}
+        selectedPresetId={song.selectedPresetId}
+        onSelectPreset={song.handleSelectPreset}
+        onFileUpload={song.handleFileUpload}
+        transpose={song.transpose}
         isScaleMode={scaleLab.isScaleMode}
         onToggleScaleMode={scaleLab.toggleScaleMode}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
-        isLoadingScore={isLoadingScore}
+        isLoadingScore={engine.isLoadingScore}
+        themeId={theme.themeId}
+        themeOptions={theme.themeOptions}
+        onSelectTheme={theme.setTheme}
       />
 
       {/* 2. Multi-Instrument Track Flow Switcher */}
       <TrackSelector
-        tracks={tracks}
-        activeTrackIndex={activeTrackIndex}
-        onSelectTrack={handleSelectTrack}
-        onToggleMute={handleToggleMute}
-        onToggleSolo={handleToggleSolo}
+        tracks={song.tracks}
+        activeTrackIndex={song.activeTrackIndex}
+        onSelectTrack={song.handleSelectTrack}
+        onToggleMute={song.handleToggleMute}
+        onToggleSolo={song.handleToggleSolo}
       />
 
       {/* 2b. Scale Lab Control Bar */}
@@ -484,7 +337,7 @@ export const App: React.FC = () => {
           flexDirection: 'column',
           width: '100%',
           overflow: 'hidden',
-          backgroundColor: '#120e0e',
+          backgroundColor: 'var(--bg-primary)',
           position: 'relative',
         }}
       >
@@ -512,6 +365,7 @@ export const App: React.FC = () => {
               scaleDisplayMode={scaleLab.scaleDisplayMode}
               tuning={activeTuning}
               backingProgressionName={scaleLab.backingProgressionName}
+              canvasTheme={theme.theme.canvas}
             />
           </div>
         )}
@@ -532,6 +386,7 @@ export const App: React.FC = () => {
             scaleDisplayMode={scaleLab.scaleDisplayMode}
             scalePosition={scaleLab.scalePosition}
             backingProgressionName={scaleLab.backingProgressionName}
+            canvasTheme={theme.theme.canvas}
           />
         </div>
 
@@ -540,7 +395,7 @@ export const App: React.FC = () => {
           isCountingIn={met.isCountingIn}
           countInBeat={met.countInBeat}
           timeSignature={met.timeSignature}
-          tempo={tempo}
+          tempo={song.tempo}
         />
       </div>
 
@@ -548,15 +403,15 @@ export const App: React.FC = () => {
       <AlphaTabSheet
         ref={alphaTabRef}
         initialTex={PRESET_SONGS[0].tex}
-        activeTrackIndex={activeTrackIndex}
+        activeTrackIndex={song.activeTrackIndex}
         onTracksLoaded={(loadedTracks, initialIdx) => {
-          setTracks(loadedTracks);
-          setActiveTrackIndex(initialIdx);
+          song.setTracks(loadedTracks);
+          song.setActiveTrackIndex(initialIdx);
         }}
         onSongInfoLoaded={(title, artist, songTempo, songTimeSig) => {
-          setSongTitle(title);
-          setSongArtist(artist);
-          setTempo(songTempo);
+          song.setSongTitle(title);
+          song.setSongArtist(artist);
+          song.setTempo(songTempo);
           if (songTimeSig) met.setTimeSignature(songTimeSig);
         }}
         onTimelineLoaded={(extractedTimeline) => {
@@ -574,30 +429,16 @@ export const App: React.FC = () => {
         onCurrentTimeMsChange={playback.syncTime}
         onPlayerStateChange={playback.setIsPlaying}
         isExpanded={playback.isSheetExpanded}
-        onSoundFontProgress={(loaded, total) => {
-          const pct = total > 0 ? (loaded / total) * 100 : 0;
-          setSoundFontProgress(pct);
-          setSoundFontStatus(`Mengunduh SoundFont Sonivox (${(loaded / 1024 / 1024).toFixed(1)} MB)...`);
-        }}
-        onSoundFontLoaded={() => {
-          setSoundFontProgress(100);
-          setSoundFontStatus('Menyiapkan AlphaSynth Audio Engine...');
-        }}
-        onPlayerReady={() => {
-          setSoundFontStatus('Siap Bermain!');
-          setIsEngineLoading(false);
-        }}
+        onSoundFontProgress={engine.handleSoundFontProgress}
+        onSoundFontLoaded={engine.handleSoundFontLoaded}
+        onPlayerReady={engine.handlePlayerReady}
         onError={(err) => {
-          setSoundFontError(err);
+          engine.setSoundFontError(err);
           toast.showError('Sistem Error', err);
-          setIsLoadingScore(false);
+          engine.clearLoadingOnError();
         }}
-        onScoreLoading={() => {
-          setIsLoadingScore(true);
-        }}
-        onScoreLoaded={() => {
-          setIsLoadingScore(false);
-        }}
+        onScoreLoading={engine.handleScoreLoading}
+        onScoreLoaded={engine.handleScoreLoaded}
       />
 
       {/* 5. Studio Telemetry & Transport Bar */}
@@ -609,8 +450,11 @@ export const App: React.FC = () => {
           nextChordName={nextChordName}
           currentSection={currentSection}
           nextSection={nextSection}
+          sections={timeline?.sections || []}
+          onPrevSection={handlePrevSection}
+          onNextSection={handleNextSection}
           barIndex={currentBarIndex}
-          tempo={tempo}
+          tempo={song.tempo}
           timeSignature={met.timeSignature}
           isPlaying={playback.isPlaying}
           onPlayPause={handlePlayPause}
@@ -643,8 +487,8 @@ export const App: React.FC = () => {
           onToggleCountIn={() => met.setIsCountInEnabled((prev) => !prev)}
           isCountingIn={met.isCountingIn}
           countInBeat={met.countInBeat}
-          transpose={transpose}
-          onTransposeChange={handleTransposeChange}
+          transpose={song.transpose}
+          onTransposeChange={song.handleTransposeChange}
           isSpeedTrainer={speedTrainer.isSpeedTrainer}
           onToggleSpeedTrainer={handleToggleSpeedTrainer}
           speedTrainerStep={speedTrainer.step}
@@ -661,15 +505,11 @@ export const App: React.FC = () => {
 
       {/* 7. Splash Loading Screen for Initial Audio/SoundFont Engine */}
       <SplashScreen
-        isLoading={isEngineLoading}
-        progress={soundFontProgress}
-        statusText={soundFontStatus}
-        error={soundFontError}
-        onRetry={() => {
-          setSoundFontError(null);
-          setIsEngineLoading(true);
-          window.location.reload();
-        }}
+        isLoading={engine.isEngineLoading}
+        progress={engine.soundFontProgress}
+        statusText={engine.soundFontStatus}
+        error={engine.soundFontError}
+        onRetry={engine.handleRetry}
       />
 
       {/* 8. Global Studio Toast Notifications */}

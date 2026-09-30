@@ -26,7 +26,7 @@ export const CountInOverlay: React.FC<CountInOverlayProps> = ({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(18, 14, 14, 0.75)',
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(5px)',
         zIndex: 50,
         pointerEvents: 'none',
@@ -40,9 +40,9 @@ export const CountInOverlay: React.FC<CountInOverlayProps> = ({
           gap: '12px',
           padding: '24px 48px',
           borderRadius: '12px',
-          background: 'linear-gradient(180deg, rgba(35, 27, 27, 0.95) 0%, rgba(20, 16, 16, 0.98) 100%)',
-          border: '1.5px solid #ffb86c',
-          boxShadow: '0 0 35px rgba(255, 184, 108, 0.35)',
+          backgroundColor: 'var(--bg-surface-elevated)',
+          border: '1.5px solid var(--accent-amber)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 24px var(--accent-amber)',
         }}
       >
         <div
@@ -50,7 +50,7 @@ export const CountInOverlay: React.FC<CountInOverlayProps> = ({
             fontSize: '11px',
             fontWeight: 800,
             fontFamily: 'var(--font-mono)',
-            color: '#ffb86c',
+            color: 'var(--accent-amber)',
             letterSpacing: '2.5px',
             textTransform: 'uppercase',
           }}
@@ -66,10 +66,10 @@ export const CountInOverlay: React.FC<CountInOverlayProps> = ({
             fontSize: '92px',
             fontWeight: 900,
             fontFamily: 'var(--font-mono)',
-            color: countInBeat === 1 ? '#ffb86c' : '#ffffff',
+            color: countInBeat === 1 ? 'var(--accent-amber)' : 'var(--text-primary)',
             lineHeight: 1,
             textShadow: countInBeat === 1
-              ? '0 0 35px rgba(255, 184, 108, 0.95), 0 0 60px rgba(255, 184, 108, 0.4)'
+              ? '0 0 35px var(--accent-amber)'
               : '0 0 25px rgba(255, 255, 255, 0.75)',
             transformOrigin: 'center center',
           }}
@@ -88,8 +88,8 @@ export const CountInOverlay: React.FC<CountInOverlayProps> = ({
                   width: '12px',
                   height: '12px',
                   borderRadius: '50%',
-                  backgroundColor: isActive ? '#ffb86c' : '#3d3232',
-                  boxShadow: isActive ? '0 0 10px #ffb86c' : 'none',
+                  backgroundColor: isActive ? 'var(--accent-amber)' : 'var(--bg-control)',
+                  boxShadow: isActive ? '0 0 10px var(--accent-amber)' : 'none',
                   transform: isActive ? 'scale(1.2)' : 'scale(1)',
                   transition: 'all 0.12s ease',
                 }}
@@ -102,7 +102,7 @@ export const CountInOverlay: React.FC<CountInOverlayProps> = ({
           style={{
             fontSize: '11px',
             fontFamily: 'var(--font-mono)',
-            color: '#a89d9d',
+            color: 'var(--text-muted)',
             marginTop: '2px',
           }}
         >

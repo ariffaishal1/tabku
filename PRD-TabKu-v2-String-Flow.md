@@ -145,14 +145,21 @@ Berdasarkan pencapaian v2.0, berikut adalah daftar kebutuhan fungsional dan tekn
 
 ### Prioritas 3 (Future Scope): Pembelajaran Interaktif & Gamifikasi
 
-#### FR-NEXT-07: Deteksi Nada via Mikrofon (Interactive Practice Mode)
-* **Kebutuhan:** Aplikasi mendengarkan permainan gitar fisik pengguna melalui mikrofon laptop/komputer dan mencocokkannya dengan not pada tab.
-* **Acceptance Criteria:**
-  - Memanfaatkan Web Audio API Pitch Detection (YIN / McLeod Pitch Method).
-  - Memberikan umpan balik visual langsung: *Hit / Perfect* (hijau), *Late / Early* (kuning), atau *Miss* (merah).
+#### FR-NEXT-07: Deteksi Nada via Mikrofon (Interactive Practice Mode) [DILOMPATI / SKIPPED]
+* **Status:** Di-skip (tidak dibutuhkan sesuai preferensi pengguna).
+* **Kebutuhan Awal:** Aplikasi mendengarkan permainan gitar fisik pengguna melalui mikrofon laptop/komputer.
 
-#### FR-NEXT-08: Responsivitas Layar Tablet & Custom Themes
-* **Kebutuhan:** Optimalisasi tata letak untuk tablet (iPad / Android Tablet) saat diletakkan di atas *music stand*, serta pilihan tema warna kustom (e.g. Cyber Neon, Classic Parchment, Stealth Black).
+#### FR-NEXT-08: Responsivitas Layar Tablet & Custom Themes — ✅ DONE
+* **Kebutuhan:** Optimalisasi tata letak untuk tablet (iPad / Android Tablet) saat diletakkan di atas *music stand*, serta pilihan tema warna kustom (Cyber Neon, Classic Parchment, Stealth Black) dengan shortcut `C`.
+
+#### FR-NEXT-09: Mini-Map Section Seekbar (DAW-Grade Arrangement Overview) — ✅ DONE
+* **Fitur Utama:**
+  - **Mini-Map Section Ribbon:** Pita seksi lagu di atas scrubber track, dikodekan warna berdasarkan jenis (Intro ⚡, Verse 📖, Chorus 🌟, Solo 🎸, Bridge 🌉, Outro 🏁) dengan active glow dan label teks.
+  - **1-Click Jump Navigation:** Klik pada balok seksi di ribbon langsung melompat (*seek*) ke awal seksi tersebut.
+  - **Scrubber Dividers & Rich Hover Tooltip:** Divider halus pada track scrubber dan floating tooltip lengkap: `[Icon] [SECTION] · BAR [X] · [mm:ss]`.
+  - **Left Cluster Section Selector:** Tombol `BAR [X]`, tombol `⏮` (seksi sebelumnya), pil seksi aktif dengan ikon & dropdown caret, serta tombol `⏭` (seksi berikutnya).
+  - **Section Jump Popover:** Klik pil seksi membuka daftar dropdown seluruh seksi lagu beserta timestamp untuk navigasi cepat.
+  - **Keyboard Shortcuts:** `Shift + ←` (Seksi Sebelumnya) dan `Shift + →` (Seksi Berikutnya).
 
 ---
 
@@ -173,12 +180,14 @@ Berdasarkan pencapaian v2.0, berikut adalah daftar kebutuhan fungsional dan tekn
 ## 8. Ringkasan Rencana Aksi Segera (*Next Action Plan*)
 
 ```
-[SELESAI]  Fase 1: Implementasi 2D String Flow + Flat Fretboard + Telemetri + AlphaTab Audio
-[SELESAI]  Fase 2: A-B Looper + Flip Strings + Count-In Metronome + Keyboard Shortcuts Modal
-[SELESAI]  Fase 3: Transpose + Scale Map Overlay + Speed Trainer
-[SELESAI]  Refactor: Dekomposisi App.tsx ke 5 custom hooks + 3 komponen UI terpisah
-[BERIKUTNYA] Fase 4: Mic Interactive Pitch Detection (FR-NEXT-07)
-[MENDATANG]  Fase 5: Responsivitas Tablet + Custom Themes (FR-NEXT-08)
+[SELESAI]   Fase 1: Implementasi 2D String Flow + Flat Fretboard + Telemetri + AlphaTab Audio
+[SELESAI]   Fase 2: A-B Looper + Flip Strings + Count-In Metronome + Keyboard Shortcuts Modal
+[SELESAI]   Fase 3: Transpose + Scale Map Overlay + Speed Trainer
+[SELESAI]   Refactor: Dekomposisi App.tsx ke custom hooks terfokus
+[DILOMPATI] Fase 4: Mic Interactive Pitch Detection (FR-NEXT-07) - Tidak diperlukan
+[SELESAI]   Fase 5: Responsivitas Tablet & Custom Themes (FR-NEXT-08)
+[SELESAI]   Fase 6: Mini-Map Section Seekbar & Navigation (FR-NEXT-09)
 ```
 
 Dokumen ini menjadi acuan utama pengembangan teknis dan penambahan fitur lanjutan untuk proyek **TabKu**.
+

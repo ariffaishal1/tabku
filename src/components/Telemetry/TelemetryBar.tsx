@@ -1,6 +1,8 @@
 import React from 'react';
-import { Play, Pause, Square, Zap, Music, Volume2, VolumeX, X, Metronome, Timer, TrendingUp } from 'lucide-react';
-import type { ExtractedNote } from '../../services/timelineExtractor';
+import { Play, Pause, Square, Zap, Music, Volume2, VolumeX, X, Metronome, Timer, TrendingUp, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import type { ExtractedNote, SectionMarker } from '../../services/timelineExtractor';
+import { findSectionAtTime } from '../../services/timelineExtractor';
+import { getSectionStyle } from '../../utils/sectionColors';
 import { formatTime } from '../../utils/guitarMath';
 
 interface TelemetryBarProps {
@@ -10,6 +12,9 @@ interface TelemetryBarProps {
   nextChordName?: string;
   currentSection?: string;
   nextSection?: string;
+  sections?: SectionMarker[];
+  onPrevSection?: () => void;
+  onNextSection?: () => void;
   barIndex: number;
   tempo: number;
   timeSignature?: string;
@@ -68,6 +73,9 @@ interface TelemetryBarProps {
 export const TelemetryBar: React.FC<TelemetryBarProps> = ({
   currentSection,
   nextSection,
+  sections,
+  onPrevSection,
+  onNextSection,
   barIndex,
   tempo,
   timeSignature = '4/4',
@@ -121,6 +129,47 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
   const [isSeekbarHovered, setIsSeekbarHovered] = React.useState(false);
   const [hoverTime, setHoverTime] = React.useState<number | null>(null);
   const [hoverX, setHoverX] = React.useState<number | null>(null);
+  const [isSectionMenuOpen, setIsSectionMenuOpen] = React.useState(false);
+  const sectionMenuRef = React.useRef<HTMLDivElement>(null);
+
+  // Active section based on current playback time
+  const activeSection = React.useMemo(() => {
+    if (!sections || sections.length === 0) return null;
+    return findSectionAtTime(sections, currentTime * 1000);
+  }, [sections, currentTime]);
+
+  const activeSectionDisplayName = activeSection?.name || currentSection || nextSection || 'Main';
+  const activeStyle = getSectionStyle(activeSectionDisplayName);
+  const hasSections = Boolean(sections && sections.length > 0);
+
+  // Section under hover position on seekbar
+  const hoveredSection = React.useMemo(() => {
+    if (!sections || sections.length === 0 || hoverTime === null) return null;
+    return findSectionAtTime(sections, hoverTime * 1000);
+  }, [sections, hoverTime]);
+
+  const hoveredStyle = hoveredSection ? getSectionStyle(hoveredSection.name) : null;
+
+  // Dismiss section jump popover on outside click or Escape
+  React.useEffect(() => {
+    if (!isSectionMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sectionMenuRef.current && !sectionMenuRef.current.contains(event.target as Node)) {
+        setIsSectionMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSectionMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSectionMenuOpen]);
 
   // Pulse state for A-B loop active indicator (glow/toggle animation during playback)
   const [loopPulseOn, setLoopPulseOn] = React.useState<boolean>(false);
@@ -143,14 +192,95 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
         display: 'flex',
         flexDirection: 'column',
         width: '100%',
-        backgroundColor: '#141010',
-        borderTop: '1px solid #2b2323',
+        backgroundColor: 'var(--bg-surface)',
+        borderTop: '1px solid var(--border-subtle)',
         boxSizing: 'border-box',
         userSelect: 'none',
         flexShrink: 0,
       }}
     >
-      {/* 1. Scrub Progress Bar — Always visible, interactive DAW-grade seekbar */}
+      {/* 1. Mini-Map Section Ribbon (DAW-grade arrangement overview) */}
+      {hasSections && duration > 0 && (
+        <div
+          className="telemetry-section-ribbon"
+          style={{
+            width: '100%',
+            height: '18px',
+            backgroundColor: 'var(--bg-primary)',
+            borderBottom: '1px solid var(--border-subtle)',
+            position: 'relative',
+            display: 'flex',
+            overflow: 'hidden',
+          }}
+        >
+          {sections!.map((sec, idx) => {
+            const startPct = (sec.startMs / (duration * 1000)) * 100;
+            const durMs =
+              sec.durationMs ??
+              (idx < sections!.length - 1 ? sections![idx + 1].startMs - sec.startMs : duration * 1000 - sec.startMs);
+            const widthPct = Math.max(0.5, (durMs / (duration * 1000)) * 100);
+            const isCurrent = activeSection?.name === sec.name && activeSection?.startMs === sec.startMs;
+            const style = getSectionStyle(sec.name);
+
+            return (
+              <div
+                key={`ribbon-sec-${idx}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSeek(sec.startMs / 1000);
+                }}
+                title={`Lompat ke ${sec.name} (${formatTime(sec.startMs / 1000)}) · Bar ${sec.barIndex}`}
+                style={{
+                  position: 'absolute',
+                  left: `${startPct}%`,
+                  width: `${widthPct}%`,
+                  height: '100%',
+                  backgroundColor: isCurrent ? style.bg : 'transparent',
+                  borderTop: isCurrent ? `2px solid ${style.color}` : `1px solid ${style.color}55`,
+                  borderRight: idx < sections!.length - 1 ? '1px solid var(--border-medium)' : 'none',
+                  boxSizing: 'border-box',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 4px',
+                  gap: '3px',
+                  overflow: 'hidden',
+                  transition: 'background-color 0.15s ease, border-color 0.15s ease',
+                  boxShadow: isCurrent ? `inset 0 0 8px ${style.bg}` : 'none',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = isCurrent ? style.bg : 'var(--bg-control)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = isCurrent ? style.bg : 'transparent';
+                }}
+              >
+                <span style={{ fontSize: '9px', lineHeight: 1, flexShrink: 0 }}>
+                  {style.icon}
+                </span>
+                <span
+                  style={{
+                    fontSize: '9px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: isCurrent ? 800 : 600,
+                    color: isCurrent ? style.color : 'var(--text-secondary)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.4px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    lineHeight: '18px',
+                  }}
+                >
+                  {sec.name}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 2. Scrub Progress Bar — Always visible, interactive DAW-grade seekbar */}
       <div
         onMouseEnter={() => setIsSeekbarHovered(true)}
         onMouseLeave={() => {
@@ -184,29 +314,47 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
           flexShrink: 0,
         }}
       >
-        {/* Floating timestamp tooltip on hover */}
+        {/* Floating timestamp & section tooltip on hover */}
         {isSeekbarHovered && hoverTime !== null && hoverX !== null && (
           <div
             style={{
               position: 'absolute',
-              left: `${Math.max(24, Math.min(window.innerWidth - 24, hoverX))}px`,
-              bottom: '20px',
+              left: `${Math.max(40, Math.min(window.innerWidth - 40, hoverX))}px`,
+              bottom: '22px',
               transform: 'translateX(-50%)',
-              backgroundColor: '#1a1414',
-              border: '1px solid #FF7A65',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: `1px solid ${hoveredStyle ? hoveredStyle.color : 'var(--accent-coral)'}`,
               borderRadius: '4px',
-              padding: '2px 6px',
+              padding: '3px 8px',
               fontSize: '10px',
               fontFamily: 'var(--font-mono)',
               fontWeight: 800,
-              color: '#ffffff',
+              color: 'var(--text-primary)',
               pointerEvents: 'none',
-              zIndex: 20,
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.7)',
+              zIndex: 25,
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.75)',
               whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
             }}
           >
-            {formatTime(hoverTime)}
+            {hoveredSection ? (
+              <>
+                <span style={{ fontSize: '11px' }}>{hoveredStyle?.icon}</span>
+                <span style={{ color: hoveredStyle?.color, fontWeight: 900, textTransform: 'uppercase' }}>
+                  {hoveredSection.name}
+                </span>
+                <span style={{ color: 'var(--border-strong)' }}>·</span>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  BAR {hoveredSection.barIndex < 10 ? `00${hoveredSection.barIndex}` : hoveredSection.barIndex < 100 ? `0${hoveredSection.barIndex}` : hoveredSection.barIndex}
+                </span>
+                <span style={{ color: 'var(--border-strong)' }}>·</span>
+                <span>{formatTime(hoverTime)}</span>
+              </>
+            ) : (
+              <span>{formatTime(hoverTime)}</span>
+            )}
           </div>
         )}
 
@@ -215,14 +363,37 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
           style={{
             width: '100%',
             height: isSeekbarHovered ? '8px' : '6px',
-            backgroundColor: '#2c2222',
-            borderTop: '1px solid #3d3030',
-            borderBottom: '1px solid #3d3030',
+            backgroundColor: 'var(--border-subtle)',
+            borderTop: '1px solid var(--border-medium)',
+            borderBottom: '1px solid var(--border-medium)',
             position: 'relative',
             transition: 'height 0.15s ease',
             overflow: 'visible',
           }}
         >
+          {/* Section Dividers / Tick marks on scrubber track */}
+          {hasSections &&
+            sections!.map((sec, idx) => {
+              const tickPercent = duration > 0 ? (sec.startMs / (duration * 1000)) * 100 : 0;
+              if (tickPercent <= 0.2 || tickPercent >= 99.8) return null;
+              const tickStyle = getSectionStyle(sec.name);
+              return (
+                <div
+                  key={`sec-tick-${idx}`}
+                  style={{
+                    position: 'absolute',
+                    left: `${tickPercent}%`,
+                    top: 0,
+                    bottom: 0,
+                    width: '1px',
+                    backgroundColor: tickStyle.color,
+                    opacity: 0.65,
+                    zIndex: 3,
+                    pointerEvents: 'none',
+                  }}
+                />
+              );
+            })}
           {/* A-B Loop shaded region (Above progress bar, clear visible glowing region) */}
           {hasABLoop && loopAPercent != null && loopBPercent != null && (
             <div
@@ -235,14 +406,14 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                   ? 'rgba(80, 250, 123, 0.32)'
                   : 'rgba(80, 250, 123, 0.22)',
                 borderLeft: '2px solid #50fa7b',
-                borderRight: '2px solid #FF7A65',
+                borderRight: '2px solid var(--accent-coral)',
                 borderTop: '1px solid rgba(80, 250, 123, 0.6)',
                 borderBottom: '1px solid rgba(80, 250, 123, 0.6)',
                 boxSizing: 'border-box',
                 pointerEvents: 'none',
                 zIndex: 3,
                 boxShadow: loopPulseOn
-                  ? '0 0 18px rgba(80, 250, 123, 0.65), 0 0 4px rgba(255,122,101,0.4)'
+                  ? '0 0 18px rgba(80, 250, 123, 0.65), 0 0 4px var(--accent-coral-glow)'
                   : '0 0 10px rgba(80, 250, 123, 0.3)',
                 transition: 'background-color 240ms ease, box-shadow 240ms ease',
               }}
@@ -297,8 +468,8 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                   left: `${loopBPercent}%`,
                   width: '2px',
                   height: '100%',
-                  backgroundColor: '#FF7A65',
-                  boxShadow: '0 0 8px #FF7A65',
+                  backgroundColor: 'var(--accent-coral)',
+                  boxShadow: '0 0 8px var(--accent-coral)',
                   pointerEvents: 'none',
                   zIndex: 4,
                 }}
@@ -309,8 +480,8 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                   left: `${loopBPercent}%`,
                   top: '-13px',
                   transform: 'translateX(-50%)',
-                  backgroundColor: '#FF7A65',
-                  color: '#120e0e',
+                  backgroundColor: 'var(--accent-coral)',
+                  color: 'var(--text-inverse)',
                   fontSize: '8px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 900,
@@ -332,8 +503,8 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
             style={{
               height: '100%',
               width: `${Math.min(100, Math.max(0, progressPercent))}%`,
-              backgroundColor: '#FF7A65',
-              boxShadow: '0 0 10px rgba(255, 122, 101, 0.8)',
+              backgroundColor: 'var(--accent-coral)',
+              boxShadow: '0 0 10px var(--accent-coral-glow)',
               position: 'relative',
               zIndex: 2,
             }}
@@ -349,9 +520,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               width: '12px',
               height: '12px',
               borderRadius: '50%',
-              backgroundColor: '#FF7A65',
-              border: '2px solid #ffffff',
-              boxShadow: '0 0 10px rgba(255, 122, 101, 0.9), 0 0 4px rgba(0, 0, 0, 0.9)',
+              backgroundColor: 'var(--accent-coral)',
+              border: '2px solid var(--bg-primary)',
+              boxShadow: '0 0 10px var(--accent-coral-glow), 0 0 4px rgba(0, 0, 0, 0.6)',
               pointerEvents: 'none',
               zIndex: 5,
               transition: 'transform 0.15s ease',
@@ -362,18 +533,20 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
 
       {/* 2. Studio Transport & Practice Controls Bar */}
       <div
+        className="telemetry-transport-row"
         style={{
           display: 'flex',
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          height: '58px',
+          minHeight: '58px',
           padding: '0 20px',
           gap: '16px',
         }}
       >
         {/* Left Side: Session Status & Practice Tools */}
         <div
+          className="telemetry-left-cluster"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -381,40 +554,304 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
             flexShrink: 0,
           }}
         >
-          {/* Song Section & Bar Indicator Badge */}
+          {/* Song Section & Bar Indicator DAW Cluster */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              backgroundColor: '#1b1414',
-              border: '1px solid #332828',
-              borderRadius: '4px',
-              padding: '5px 10px',
+              gap: '4px',
+              position: 'relative',
             }}
-            title={`Bagian Lagu: ${currentSection || nextSection || 'Main'}\nBirama: ${barIndex}\nTempo: ${tempo} BPM · ${timeSignature}`}
+            ref={sectionMenuRef}
           >
-            <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#FF7A65' }}>
-              BAR {formattedBar}
-            </span>
-            <span style={{ color: '#4a3d3d', fontSize: '10px' }}>·</span>
-            <span
+            {/* Bar Badge */}
+            <div
               style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                fontFamily: 'var(--font-sans)',
-                color: '#e0d5d5',
-                maxWidth: '120px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+                backgroundColor: 'var(--bg-control)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '4px',
+                padding: '5px 8px',
+                fontSize: '10px',
+                fontWeight: 800,
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--accent-coral)',
+                letterSpacing: '0.5px',
+                display: 'flex',
+                alignItems: 'center',
+                height: '28px',
+                boxSizing: 'border-box',
+              }}
+              title={`Birama aktif: Bar ${barIndex}\nTempo: ${tempo} BPM · ${timeSignature}`}
+            >
+              BAR {formattedBar}
+            </div>
+
+            {/* Section Switcher & Popover Trigger */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                backgroundColor: 'var(--bg-control)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '4px',
+                padding: '2px',
+                height: '28px',
+                boxSizing: 'border-box',
               }}
             >
-              {currentSection || nextSection || 'Main'}
-            </span>
+              {/* Prev Section Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPrevSection?.();
+                }}
+                disabled={!hasSections}
+                title="Bagian Sebelumnya (Shift + ←)"
+                style={{
+                  width: '20px',
+                  height: '22px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'transparent',
+                  border: 'none',
+                  borderRadius: '3px',
+                  color: hasSections ? 'var(--text-secondary)' : 'var(--text-muted)',
+                  cursor: hasSections ? 'pointer' : 'not-allowed',
+                  opacity: hasSections ? 1 : 0.4,
+                  padding: 0,
+                  transition: 'color 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (hasSections) e.currentTarget.style.color = 'var(--text-primary)';
+                }}
+                onMouseLeave={(e) => {
+                  if (hasSections) e.currentTarget.style.color = 'var(--text-secondary)';
+                }}
+              >
+                <ChevronLeft size={13} />
+              </button>
+
+              {/* Active Section Pill (Dropdown Trigger) */}
+              <button
+                onClick={() => {
+                  if (hasSections) {
+                    setIsSectionMenuOpen((prev) => !prev);
+                  }
+                }}
+                disabled={!hasSections}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '0 6px',
+                  height: '22px',
+                  backgroundColor: isSectionMenuOpen ? 'var(--bg-surface-elevated)' : 'transparent',
+                  border: '1px solid',
+                  borderColor: isSectionMenuOpen ? activeStyle.color : 'transparent',
+                  borderRadius: '3px',
+                  cursor: hasSections ? 'pointer' : 'default',
+                  transition: 'all 0.15s ease',
+                }}
+                title={hasSections ? `Bagian Lagu: ${activeSectionDisplayName} (Klik untuk daftar section)\nBirama: ${barIndex}\nTempo: ${tempo} BPM · ${timeSignature}` : undefined}
+              >
+                <span style={{ fontSize: '11px', lineHeight: 1 }}>{activeStyle.icon}</span>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-sans)',
+                    color: activeStyle.color,
+                    maxWidth: '100px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {activeSectionDisplayName}
+                </span>
+                {hasSections && (
+                  <ChevronDown
+                    size={11}
+                    style={{
+                      color: 'var(--text-muted)',
+                      transform: isSectionMenuOpen ? 'rotate(180deg)' : 'none',
+                      transition: 'transform 0.2s ease',
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+              </button>
+
+              {/* Next Section Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNextSection?.();
+                }}
+                disabled={!hasSections}
+                title="Bagian Berikutnya (Shift + →)"
+                style={{
+                  width: '20px',
+                  height: '22px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'transparent',
+                  border: 'none',
+                  borderRadius: '3px',
+                  color: hasSections ? 'var(--text-secondary)' : 'var(--text-muted)',
+                  cursor: hasSections ? 'pointer' : 'not-allowed',
+                  opacity: hasSections ? 1 : 0.4,
+                  padding: 0,
+                  transition: 'color 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (hasSections) e.currentTarget.style.color = 'var(--text-primary)';
+                }}
+                onMouseLeave={(e) => {
+                  if (hasSections) e.currentTarget.style.color = 'var(--text-secondary)';
+                }}
+              >
+                <ChevronRight size={13} />
+              </button>
+            </div>
+
+            {/* Section Jump Popover */}
+            {isSectionMenuOpen && sections && sections.length > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 'calc(100% + 8px)',
+                  left: 0,
+                  width: '240px',
+                  maxHeight: '260px',
+                  overflowY: 'auto',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-medium)',
+                  borderRadius: '8px',
+                  boxShadow: '0 12px 32px rgba(0, 0, 0, 0.7), 0 0 1px rgba(255, 255, 255, 0.15)',
+                  padding: '6px',
+                  zIndex: 100,
+                  backdropFilter: 'blur(16px)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '3px',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '4px 6px 6px 6px',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    marginBottom: '2px',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: 800,
+                      fontFamily: 'var(--font-mono)',
+                      color: 'var(--text-secondary)',
+                      letterSpacing: '0.8px',
+                    }}
+                  >
+                    BAGIAN LAGU ({sections.length})
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '9px',
+                      fontFamily: 'var(--font-mono)',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    Shift + ← / →
+                  </span>
+                </div>
+
+                {sections.map((sec, idx) => {
+                  const isCurrent = activeSection?.name === sec.name && activeSection?.startMs === sec.startMs;
+                  const secStyle = getSectionStyle(sec.name);
+                  return (
+                    <button
+                      key={`popover-sec-${idx}`}
+                      onClick={() => {
+                        onSeek(sec.startMs / 1000);
+                        setIsSectionMenuOpen(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '6px 8px',
+                        borderRadius: '5px',
+                        border: isCurrent ? `1px solid ${secStyle.color}` : '1px solid transparent',
+                        backgroundColor: isCurrent ? secStyle.bg : 'transparent',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        gap: '8px',
+                        transition: 'all 0.12s ease',
+                        boxSizing: 'border-box',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isCurrent) {
+                          e.currentTarget.style.backgroundColor = 'var(--bg-control)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isCurrent) {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                        <span style={{ fontSize: '13px', lineHeight: 1, flexShrink: 0 }}>{secStyle.icon}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: isCurrent ? 800 : 600,
+                              color: isCurrent ? secStyle.color : 'var(--text-primary)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {sec.name}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontFamily: 'var(--font-mono)',
+                              color: 'var(--text-muted)',
+                            }}
+                          >
+                            Bar {sec.barIndex}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          color: isCurrent ? secStyle.color : 'var(--text-secondary)',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {formatTime(sec.startMs / 1000)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          <div style={{ width: '1px', height: '22px', backgroundColor: '#282020', margin: '0 2px' }} />
+          <div style={{ width: '1px', height: '22px', backgroundColor: 'var(--border-subtle)', margin: '0 2px' }} />
 
           {/* Speed Control with -/+ buttons */}
           <div
@@ -433,9 +870,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                 width: '24px',
                 height: '24px',
                 borderRadius: '3px',
-                border: '1px solid #332828',
-                backgroundColor: '#1c1616',
-                color: '#a89d9d',
+                border: '1px solid var(--border-medium)',
+                backgroundColor: 'var(--bg-control)',
+                color: 'var(--text-secondary)',
                 fontSize: '13px',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -452,9 +889,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               style={{
                 padding: '4px 7px',
                 borderRadius: '4px',
-                backgroundColor: '#1c1616',
-                border: '1px solid #332828',
-                color: speed === 1.0 ? '#a89d9d' : '#FF7A65',
+                backgroundColor: 'var(--bg-control)',
+                border: '1px solid var(--border-medium)',
+                color: speed === 1.0 ? 'var(--text-secondary)' : 'var(--accent-coral)',
                 fontSize: '11px',
                 fontWeight: 700,
                 fontFamily: 'var(--font-mono)',
@@ -474,9 +911,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                 width: '24px',
                 height: '24px',
                 borderRadius: '3px',
-                border: '1px solid #332828',
-                backgroundColor: '#1c1616',
-                color: '#a89d9d',
+                border: '1px solid var(--border-medium)',
+                backgroundColor: 'var(--bg-control)',
+                color: 'var(--text-secondary)',
                 fontSize: '13px',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -509,9 +946,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                 width: '24px',
                 height: '24px',
                 borderRadius: '3px',
-                border: '1px solid #332828',
-                backgroundColor: '#1c1616',
-                color: transpose <= -12 ? '#4a3d3d' : '#a89d9d',
+                border: '1px solid var(--border-medium)',
+                backgroundColor: 'var(--bg-control)',
+                color: transpose <= -12 ? 'var(--text-muted)' : 'var(--text-secondary)',
                 fontSize: '13px',
                 fontWeight: 700,
                 cursor: transpose <= -12 ? 'not-allowed' : 'pointer',
@@ -529,9 +966,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               style={{
                 padding: '4px 7px',
                 borderRadius: '4px',
-                backgroundColor: transpose !== 0 ? 'rgba(255, 184, 108, 0.16)' : '#1c1616',
-                border: transpose !== 0 ? '1px solid #ffb86c' : '1px solid #332828',
-                color: transpose !== 0 ? '#ffb86c' : '#a89d9d',
+                backgroundColor: transpose !== 0 ? 'rgba(255, 184, 108, 0.16)' : 'var(--bg-control)',
+                border: transpose !== 0 ? '1px solid var(--accent-amber)' : '1px solid var(--border-medium)',
+                color: transpose !== 0 ? 'var(--accent-amber)' : 'var(--text-secondary)',
                 fontSize: '11px',
                 fontWeight: 700,
                 fontFamily: 'var(--font-mono)',
@@ -565,9 +1002,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                 width: '24px',
                 height: '24px',
                 borderRadius: '3px',
-                border: '1px solid #332828',
-                backgroundColor: '#1c1616',
-                color: transpose >= 12 ? '#4a3d3d' : '#a89d9d',
+                border: '1px solid var(--border-medium)',
+                backgroundColor: 'var(--bg-control)',
+                color: transpose >= 12 ? 'var(--text-muted)' : 'var(--text-secondary)',
                 fontSize: '13px',
                 fontWeight: 700,
                 cursor: transpose >= 12 ? 'not-allowed' : 'pointer',
@@ -591,9 +1028,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               gap: '5px',
               padding: '6px 11px',
               borderRadius: '4px',
-              border: isSoloSlowdown ? '1.5px solid #FF7A65' : '1px solid #3d3232',
-              backgroundColor: isSoloSlowdown ? 'rgba(255, 122, 101, 0.2)' : '#1f1919',
-              color: isSoloSlowdown ? '#FF7A65' : '#c5b8b8',
+              border: isSoloSlowdown ? '1.5px solid var(--accent-coral)' : '1px solid var(--border-medium)',
+              backgroundColor: isSoloSlowdown ? 'var(--accent-coral-glow)' : 'var(--bg-control)',
+              color: isSoloSlowdown ? 'var(--accent-coral)' : 'var(--text-secondary)',
               fontSize: '10.5px',
               fontWeight: 800,
               fontFamily: 'var(--font-mono)',
@@ -602,7 +1039,7 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
             }}
             title="Latih bagian solo dengan kecepatan 50%"
           >
-            <Zap size={13} fill={isSoloSlowdown ? '#FF7A65' : 'none'} />
+            <Zap size={13} fill={isSoloSlowdown ? 'var(--accent-coral)' : 'none'} />
             <span>SOLO 50%</span>
           </button>
 
@@ -617,9 +1054,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                 gap: '5px',
                 padding: '6px 11px',
                 borderRadius: '4px',
-                border: isSpeedTrainer ? '1.5px solid #ffb86c' : '1px solid #3d3232',
-                backgroundColor: isSpeedTrainer ? 'rgba(255, 184, 108, 0.2)' : '#1f1919',
-                color: isSpeedTrainer ? '#ffb86c' : '#c5b8b8',
+                border: isSpeedTrainer ? '1.5px solid var(--accent-amber)' : '1px solid var(--border-medium)',
+                backgroundColor: isSpeedTrainer ? 'rgba(255, 184, 108, 0.2)' : 'var(--bg-control)',
+                color: isSpeedTrainer ? 'var(--accent-amber)' : 'var(--text-secondary)',
                 fontSize: '10.5px',
                 fontWeight: 800,
                 fontFamily: 'var(--font-mono)',
@@ -629,14 +1066,14 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               }}
               title={`Speed Trainer (FR-NEXT-06)\nKeyboard shortcut: T\n${isSpeedTrainer ? `Aktif: Naik +${Math.round(speedTrainerStep * 100)}% per putaran loop (Target: ${Math.round(speedTrainerTarget * 100)}%)\nPutaran selesai: ${speedTrainerLoopCount}x` : 'Otomatis naikkan tempo (+5%) setiap kali satu putaran loop A-B selesai'}`}
             >
-              <TrendingUp size={13} color={isSpeedTrainer ? '#ffb86c' : '#a89d9d'} />
+              <TrendingUp size={13} color={isSpeedTrainer ? 'var(--accent-amber)' : 'var(--text-muted)'} />
               <span>TRAINER</span>
               {isSpeedTrainer && (
                 <span
                   style={{
                     fontSize: '9px',
-                    backgroundColor: '#ffb86c',
-                    color: '#120e0e',
+                    backgroundColor: 'var(--accent-amber)',
+                    color: 'var(--text-inverse)',
                     padding: '1px 4px',
                     borderRadius: '3px',
                     fontWeight: 900,
@@ -654,10 +1091,10 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '4px',
-              backgroundColor: '#1a1414',
+              backgroundColor: 'var(--bg-control)',
               padding: '3px 5px',
               borderRadius: '5px',
-              border: hasABLoop ? '1px solid #5a3830' : '1px solid #2d2424',
+              border: hasABLoop ? '1px solid var(--accent-coral)' : '1px solid var(--border-subtle)',
             }}
           >
             {onToggleLoop && (
@@ -666,9 +1103,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                 style={{
                   padding: '5px 8px',
                   borderRadius: '3px',
-                  border: isLooping ? '1px solid #FF7A65' : '1px solid #3d3232',
-                  backgroundColor: isLooping ? 'rgba(255, 122, 101, 0.15)' : '#1f1919',
-                  color: isLooping ? '#FF7A65' : '#a89d9d',
+                  border: isLooping ? '1px solid var(--accent-coral)' : '1px solid var(--border-medium)',
+                  backgroundColor: isLooping ? 'var(--accent-coral-glow)' : 'var(--bg-surface)',
+                  color: isLooping ? 'var(--accent-coral)' : 'var(--text-secondary)',
                   fontSize: '10px',
                   fontWeight: 700,
                   fontFamily: 'var(--font-mono)',
@@ -688,9 +1125,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                 gap: '3px',
                 padding: '5px 7px',
                 borderRadius: '3px',
-                border: loopA != null ? '1px solid #50fa7b' : '1px solid #3d3232',
-                backgroundColor: loopA != null ? 'rgba(80, 250, 123, 0.15)' : '#1f1919',
-                color: loopA != null ? '#50fa7b' : '#a89d9d',
+                border: loopA != null ? '1px solid var(--accent-green)' : '1px solid var(--border-medium)',
+                backgroundColor: loopA != null ? 'rgba(80, 250, 123, 0.15)' : 'var(--bg-surface)',
+                color: loopA != null ? 'var(--accent-green)' : 'var(--text-secondary)',
                 cursor: 'pointer',
                 fontSize: '10px',
                 fontFamily: 'var(--font-mono)',
@@ -700,7 +1137,7 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
             >
               <span>A</span>
               <span style={{ fontSize: '9px', opacity: 0.7 }}>[</span>
-              {loopA != null && <span style={{ fontSize: '9px', color: '#c5b8b8' }}>{formatTime(loopA)}</span>}
+              {loopA != null && <span style={{ fontSize: '9px', color: 'var(--text-secondary)' }}>{formatTime(loopA)}</span>}
             </button>
 
             <button
@@ -711,9 +1148,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                 gap: '3px',
                 padding: '5px 7px',
                 borderRadius: '3px',
-                border: loopB != null ? '1px solid #FF7A65' : '1px solid #3d3232',
-                backgroundColor: loopB != null ? 'rgba(255, 122, 101, 0.15)' : '#1f1919',
-                color: loopB != null ? '#FF7A65' : '#a89d9d',
+                border: loopB != null ? '1px solid var(--accent-coral)' : '1px solid var(--border-medium)',
+                backgroundColor: loopB != null ? 'var(--accent-coral-glow)' : 'var(--bg-surface)',
+                color: loopB != null ? 'var(--accent-coral)' : 'var(--text-secondary)',
                 cursor: 'pointer',
                 fontSize: '10px',
                 fontFamily: 'var(--font-mono)',
@@ -723,7 +1160,7 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
             >
               <span>B</span>
               <span style={{ fontSize: '9px', opacity: 0.7 }}>]</span>
-              {loopB != null && <span style={{ fontSize: '9px', color: '#c5b8b8' }}>{formatTime(loopB)}</span>}
+              {loopB != null && <span style={{ fontSize: '9px', color: 'var(--text-secondary)' }}>{formatTime(loopB)}</span>}
             </button>
 
             {hasABLoop && onClearABLoop && (
@@ -735,9 +1172,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                   gap: '2px',
                   padding: '4px 6px',
                   borderRadius: '3px',
-                  border: '1px solid #5a4444',
-                  backgroundColor: '#2a1e1e',
-                  color: '#ff5555',
+                  border: '1px solid var(--border-strong)',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  color: 'var(--accent-red)',
                   cursor: 'pointer',
                   fontSize: '9px',
                   fontFamily: 'var(--font-mono)',
@@ -761,9 +1198,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                 gap: '5px',
                 padding: '6px 10px',
                 borderRadius: '4px',
-                border: isFlipped ? '1.5px solid #8be9fd' : '1px solid #3d3232',
-                backgroundColor: isFlipped ? 'rgba(139, 233, 253, 0.15)' : '#1f1919',
-                color: isFlipped ? '#8be9fd' : '#a89d9d',
+                border: isFlipped ? '1.5px solid var(--accent-cyan)' : '1px solid var(--border-medium)',
+                backgroundColor: isFlipped ? 'rgba(139, 233, 253, 0.15)' : 'var(--bg-control)',
+                color: isFlipped ? 'var(--accent-cyan)' : 'var(--text-secondary)',
                 fontSize: '10px',
                 fontWeight: 800,
                 fontFamily: 'var(--font-mono)',
@@ -781,6 +1218,7 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
 
         {/* Center: Main Playback Controls */}
         <div
+          className="telemetry-center-cluster"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -795,9 +1233,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
             style={{
               padding: '8px',
               borderRadius: '4px',
-              border: '1px solid #362c2c',
-              backgroundColor: '#1f1919',
-              color: '#a89d9d',
+              border: '1px solid var(--border-medium)',
+              backgroundColor: 'var(--bg-control)',
+              color: 'var(--text-secondary)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -819,15 +1257,15 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               padding: '8px 22px',
               borderRadius: '4px',
               border: 'none',
-              backgroundColor: isCountingIn ? '#ffb86c' : '#FF7A65',
-              color: '#120e0e',
+              backgroundColor: isCountingIn ? 'var(--accent-amber)' : 'var(--accent-coral)',
+              color: 'var(--text-inverse)',
               fontSize: '12px',
               fontWeight: 800,
               fontFamily: 'var(--font-mono)',
               cursor: 'pointer',
               boxShadow: isCountingIn
                 ? '0 0 18px rgba(255, 184, 108, 0.6)'
-                : '0 0 16px rgba(255, 122, 101, 0.4)',
+                : '0 0 16px var(--accent-coral-glow)',
               transition: 'all 0.15s ease',
             }}
             title={isCountingIn ? 'Hitungan awal aktif... Klik untuk batal' : isPlaying ? 'Jeda Lagu [Spasi]' : 'Putar Lagu [Spasi]'}
@@ -844,7 +1282,7 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               </>
             ) : (
               <>
-                <Play size={15} fill="#120e0e" />
+                <Play size={15} fill="var(--text-inverse)" />
                 <span>PLAY</span>
               </>
             )}
@@ -856,19 +1294,20 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               fontSize: '11px',
               fontWeight: 700,
               fontFamily: 'var(--font-mono)',
-              color: '#9e9191',
+              color: 'var(--text-muted)',
               minWidth: '95px',
               textAlign: 'center',
             }}
           >
-            <span style={{ color: '#ffffff' }}>{formatTime(currentTime)}</span>
-            <span style={{ margin: '0 3px', color: '#524747' }}>/</span>
-            <span>{formatTime(duration)}</span>
+            <span style={{ color: 'var(--text-primary)' }}>{formatTime(currentTime)}</span>
+            <span style={{ margin: '0 3px', color: 'var(--border-strong)' }}>/</span>
+            <span style={{ color: 'var(--text-secondary)' }}>{formatTime(duration)}</span>
           </div>
         </div>
 
         {/* Right Side: Audio & View Tools */}
         <div
+          className="telemetry-right-cluster"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -882,10 +1321,10 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '4px',
-              backgroundColor: '#181313',
+              backgroundColor: 'var(--bg-control)',
               padding: '3px 6px',
               borderRadius: '5px',
-              border: isMetronomeOn || isCountInEnabled ? '1px solid #5a4730' : '1px solid #2d2424',
+              border: isMetronomeOn || isCountInEnabled ? '1px solid var(--accent-amber)' : '1px solid var(--border-subtle)',
               transition: 'border 0.2s ease',
             }}
           >
@@ -899,9 +1338,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                   gap: '5px',
                   padding: '5px 8px',
                   borderRadius: '3px',
-                  border: isMetronomeOn ? '1.5px solid #ffb86c' : '1px solid #3d3232',
-                  backgroundColor: isMetronomeOn ? 'rgba(255, 184, 108, 0.15)' : '#1f1919',
-                  color: isMetronomeOn ? '#ffb86c' : '#a89d9d',
+                  border: isMetronomeOn ? '1.5px solid var(--accent-amber)' : '1px solid var(--border-medium)',
+                  backgroundColor: isMetronomeOn ? 'rgba(255, 184, 108, 0.15)' : 'var(--bg-surface)',
+                  color: isMetronomeOn ? 'var(--accent-amber)' : 'var(--text-secondary)',
                   fontSize: '10px',
                   fontWeight: 800,
                   fontFamily: 'var(--font-mono)',
@@ -926,9 +1365,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                   gap: '4px',
                   padding: '5px 7px',
                   borderRadius: '3px',
-                  border: isCountInEnabled ? '1.5px solid #ffb86c' : '1px solid #3d3232',
-                  backgroundColor: isCountInEnabled ? 'rgba(255, 184, 108, 0.15)' : '#1f1919',
-                  color: isCountInEnabled ? '#ffb86c' : '#a89d9d',
+                  border: isCountInEnabled ? '1.5px solid var(--accent-amber)' : '1px solid var(--border-medium)',
+                  backgroundColor: isCountInEnabled ? 'rgba(255, 184, 108, 0.15)' : 'var(--bg-surface)',
+                  color: isCountInEnabled ? 'var(--accent-amber)' : 'var(--text-secondary)',
                   fontSize: '10px',
                   fontWeight: 800,
                   fontFamily: 'var(--font-mono)',
@@ -952,11 +1391,11 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                   gap: '3px',
                   marginLeft: '2px',
                   paddingLeft: '4px',
-                  borderLeft: '1px solid #332828',
+                  borderLeft: '1px solid var(--border-medium)',
                 }}
                 title={`Volume Metronom: ${Math.round(metronomeVolume * 100)}%`}
               >
-                <span style={{ fontSize: '9px', color: '#ffb86c', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>VOL</span>
+                <span style={{ fontSize: '9px', color: 'var(--accent-amber)', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>VOL</span>
                 <input
                   type="range"
                   min="0"
@@ -967,7 +1406,7 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
                   style={{
                     width: '42px',
                     height: '4px',
-                    accentColor: '#ffb86c',
+                    accentColor: 'var(--accent-amber)',
                     cursor: 'pointer',
                   }}
                 />
@@ -981,7 +1420,7 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              borderLeft: '1px solid #282121',
+              borderLeft: '1px solid var(--border-subtle)',
               paddingLeft: '10px',
             }}
           >
@@ -990,7 +1429,7 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               style={{
                 background: 'none',
                 border: 'none',
-                color: volume === 0 ? '#ff5555' : '#8a7d7d',
+                color: volume === 0 ? 'var(--accent-red)' : 'var(--text-muted)',
                 cursor: 'pointer',
                 padding: '2px',
               }}
@@ -1006,7 +1445,7 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
               style={{
                 width: '60px',
-                accentColor: '#FF7A65',
+                accentColor: 'var(--accent-coral)',
                 cursor: 'pointer',
               }}
             />
@@ -1021,9 +1460,9 @@ export const TelemetryBar: React.FC<TelemetryBarProps> = ({
               gap: '5px',
               padding: '6px 10px',
               borderRadius: '4px',
-              border: isSheetExpanded ? '1px solid #4a3d3d' : '1px solid #332929',
-              backgroundColor: isSheetExpanded ? '#282020' : '#181313',
-              color: isSheetExpanded ? '#f0e6e6' : '#8a7d7d',
+              border: isSheetExpanded ? '1px solid var(--border-strong)' : '1px solid var(--border-medium)',
+              backgroundColor: isSheetExpanded ? 'var(--bg-control-active)' : 'var(--bg-control)',
+              color: isSheetExpanded ? 'var(--text-primary)' : 'var(--text-secondary)',
               fontSize: '10.5px',
               fontWeight: 700,
               fontFamily: 'var(--font-mono)',
