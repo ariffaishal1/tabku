@@ -22,6 +22,7 @@ interface UseKeyboardShortcutsProps {
   onCycleTheme?: () => void;
   onPrevSection?: () => void;
   onNextSection?: () => void;
+  onToggleStageMode?: () => void;
 }
 
 /**
@@ -66,6 +67,7 @@ export function useKeyboardShortcuts({
   onCycleTheme,
   onPrevSection,
   onNextSection,
+  onToggleStageMode,
 }: UseKeyboardShortcutsProps): void {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -165,6 +167,13 @@ export function useKeyboardShortcuts({
           }
           break;
 
+        case 'KeyZ':
+          if (!e.metaKey && !e.ctrlKey && onToggleStageMode) {
+            e.preventDefault();
+            onToggleStageMode();
+          }
+          break;
+
         case 'ArrowUp':
           if (e.shiftKey) {
             e.preventDefault();
@@ -188,6 +197,6 @@ export function useKeyboardShortcuts({
     onSpeedChange, onTransposeChange, transpose, toggleScaleMode,
     toggleSpeedTrainer, onSetLoopA, onSetLoopB, onClearABLoop,
     currentTimeMsRef, loopARef, loopBRef, setIsFlipped, setIsShortcutsOpen,
-    onCycleTheme,
+    onCycleTheme, onToggleStageMode,
   ]);
 }

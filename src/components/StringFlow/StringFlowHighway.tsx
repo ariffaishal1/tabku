@@ -860,7 +860,7 @@ export const StringFlowHighway: React.FC<StringFlowHighwayProps> = ({
               ctx.font = '800 8.5px "JetBrains Mono", monospace';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
-              ctx.fillText('🔁 LOOP REGION', leftX + ribbonW / 2, 19);
+              ctx.fillText('LOOP REGION', leftX + ribbonW / 2, 19);
             }
             ctx.restore();
           }

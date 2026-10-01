@@ -11,8 +11,16 @@ export const useToast = () => {
   const showToast = useCallback(
     (toast: Omit<ToastItem, 'id'>) => {
       const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const newToast: ToastItem = { ...toast, id };
-      setToasts((prev) => [...prev.slice(-3), newToast]); // keep max 4 toasts
+      setToasts((prev) => {
+        // Prevent duplicate toast if an identical toast (title & message) is already active
+        const exists = prev.some(
+          (t) => t.title === toast.title && t.message === toast.message
+        );
+        if (exists) return prev;
+
+        const newToast: ToastItem = { ...toast, id };
+        return [...prev.slice(-3), newToast]; // keep max 4 toasts
+      });
       return id;
     },
     []

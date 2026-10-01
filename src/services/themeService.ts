@@ -6,19 +6,19 @@ export const THEME_OPTIONS: ThemeOption[] = [
   {
     id: 'cyber-neon',
     name: 'Cyber Neon',
-    icon: '⚡',
+    icon: 'zap',
     description: 'Pro dark obsidian studio dengan aksen Coral Red bercahaya',
   },
   {
     id: 'classic-parchment',
     name: 'Classic Parchment',
-    icon: '📜',
+    icon: 'parchment',
     description: 'Tampilan lembaran partitur vintage & kayu hangat untuk music stand',
   },
   {
     id: 'stealth-black',
     name: 'Stealth Black',
-    icon: '🖤',
+    icon: 'stealth',
     description: 'OLED Pure Black kontras tinggi & hemat baterai tablet',
   },
 ];
@@ -27,7 +27,7 @@ export const THEME_DEFINITIONS: Record<ThemeId, ThemeDefinition> = {
   'cyber-neon': {
     id: 'cyber-neon',
     name: 'Cyber Neon',
-    icon: '⚡',
+    icon: 'zap',
     description: 'Pro dark obsidian studio dengan aksen Coral Red bercahaya',
     canvas: {
       background: '#120e0e',
@@ -52,7 +52,7 @@ export const THEME_DEFINITIONS: Record<ThemeId, ThemeDefinition> = {
   'classic-parchment': {
     id: 'classic-parchment',
     name: 'Classic Parchment',
-    icon: '📜',
+    icon: 'parchment',
     description: 'Tampilan lembaran partitur vintage & kayu hangat untuk music stand',
     canvas: {
       background: '#f6f1e5',
@@ -77,7 +77,7 @@ export const THEME_DEFINITIONS: Record<ThemeId, ThemeDefinition> = {
   'stealth-black': {
     id: 'stealth-black',
     name: 'Stealth Black',
-    icon: '🖤',
+    icon: 'stealth',
     description: 'OLED Pure Black kontras tinggi & hemat baterai tablet',
     canvas: {
       background: '#000000',

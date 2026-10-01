@@ -71,6 +71,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
       title: 'SISTEM & BANTUAN',
       icon: <Sparkles size={13} color="var(--accent-green)" />,
       items: [
+        { keys: ['Z'], description: 'Stage / Fullscreen Focus Mode (Zen Mode)', badge: 'Zen' },
         { keys: ['C'], description: 'Ganti Tema Studio (Cyber / Parchment / Stealth)', badge: 'Theme' },
         { keys: ['?'], description: 'Buka Cheat Sheet Pintasan Ini' },
         { keys: ['Esc'], description: 'Tutup Jendela Modal' },
@@ -303,7 +304,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ color: 'var(--accent-coral)' }}>💡</span>
+            <Sparkles size={13} color="var(--accent-coral)" style={{ flexShrink: 0 }} />
             <span>Tekan <kbd style={{ padding: '1px 5px', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-medium)', borderRadius: '3px', color: 'var(--text-primary)' }}>?</kbd> kapan saja untuk membuka panduan ini.</span>
           </div>
 

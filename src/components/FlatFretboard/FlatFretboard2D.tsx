@@ -298,17 +298,13 @@ export const FlatFretboard2D: React.FC<FlatFretboard2DProps> = ({
         const boxH = fretboardHeight + 8;
 
         ctx.save();
-        // Soft translucent cyber frame fill
-        ctx.fillStyle = canvasTheme?.nowGlow || 'rgba(255, 122, 101, 0.05)';
+        // Outline-only bounding frame (transparent center so notes are 100% unobstructed)
+        ctx.strokeStyle = canvasTheme?.nowIndicator || '#FF7A65';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = canvasTheme?.nowGlow || '#FF7A65';
+        ctx.shadowBlur = 6;
         ctx.beginPath();
         ctx.roundRect(boxX1, boxY, boxW, boxH, 6);
-        ctx.fill();
-
-        // Glowing cyber frame border
-        ctx.strokeStyle = canvasTheme?.nowIndicator || '#FF7A65';
-        ctx.lineWidth = 1.8;
-        ctx.shadowColor = canvasTheme?.nowGlow || '#FF7A65';
-        ctx.shadowBlur = 10;
         ctx.stroke();
 
         // Top cyber label badge on box

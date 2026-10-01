@@ -1,4 +1,5 @@
 import React from 'react';
+import { Zap } from 'lucide-react';
 
 interface SpeedTrainerHUDProps {
   notification: string | null;
@@ -34,7 +35,7 @@ export const SpeedTrainerHUD: React.FC<SpeedTrainerHUDProps> = ({ notification }
         whiteSpace: 'nowrap',
       }}
     >
-      <span style={{ fontSize: '14px', display: 'flex', alignItems: 'center' }}>⚡</span>
+      <Zap size={14} color="var(--accent-amber)" style={{ flexShrink: 0 }} />
       <span>{notification}</span>
     </div>
   );

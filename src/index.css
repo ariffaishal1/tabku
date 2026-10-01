@@ -239,21 +239,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
   /* Tablet header adjustments */
   .topnav-header {
     height: auto !important;
-    min-height: 60px !important;
-    padding: 8px 14px !important;
-    gap: 12px !important;
-    flex-wrap: wrap !important;
-  }
-
-  .topnav-title-bar {
-    max-width: 100% !important;
-    flex-wrap: wrap !important;
+    min-height: 38px !important;
+    padding: 4px 10px !important;
     gap: 8px !important;
-  }
-
-  .topnav-song-title {
-    max-width: 280px !important;
-    font-size: 15px !important;
+    flex-wrap: wrap !important;
   }
 
   /* Telemetry bar tablet layout */
@@ -288,10 +277,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 @media (max-width: 768px) {
-  .topnav-song-title {
-    max-width: 200px !important;
-    font-size: 13.5px !important;
-  }
 
   .stage-hud-left-panel {
     width: 125px !important;

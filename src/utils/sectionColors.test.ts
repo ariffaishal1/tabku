@@ -12,46 +12,46 @@ describe('sectionColors & Section Navigation', () => {
     it('should classify Solo sections correctly', () => {
       const style = getSectionStyle('Guitar Solo');
       expect(style.category).toBe('solo');
-      expect(style.icon).toBe('🎸');
+      expect(style.icon).toBe('flame');
       expect(style.color).toBe('var(--accent-coral)');
     });
 
     it('should classify Chorus sections correctly', () => {
       const style = getSectionStyle('Chorus 1');
       expect(style.category).toBe('chorus');
-      expect(style.icon).toBe('🌟');
+      expect(style.icon).toBe('star');
       expect(style.color).toBe('var(--accent-amber)');
     });
 
     it('should classify Verse sections correctly', () => {
       const style = getSectionStyle('Verse Riff');
       expect(style.category).toBe('verse');
-      expect(style.icon).toBe('📖');
+      expect(style.icon).toBe('book-open');
       expect(style.color).toBe('var(--accent-cyan)');
     });
 
     it('should classify Intro sections correctly', () => {
       const style = getSectionStyle('Intro Theme');
       expect(style.category).toBe('intro');
-      expect(style.icon).toBe('⚡');
+      expect(style.icon).toBe('zap');
     });
 
     it('should classify Bridge sections correctly', () => {
       const style = getSectionStyle('Bridge Interlude');
       expect(style.category).toBe('bridge');
-      expect(style.icon).toBe('🌉');
+      expect(style.icon).toBe('git-commit');
     });
 
     it('should classify Outro sections correctly', () => {
       const outroStyle = getSectionStyle('Final Outro');
       expect(outroStyle.category).toBe('outro');
-      expect(outroStyle.icon).toBe('🏁');
+      expect(outroStyle.icon).toBe('flag');
     });
 
     it('should fallback gracefully for arbitrary section names', () => {
       const style = getSectionStyle('Acoustic Part');
       expect(style.category).toBe('default');
-      expect(style.icon).toBe('🎵');
+      expect(style.icon).toBe('music');
     });
   });
 

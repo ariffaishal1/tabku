@@ -90,7 +90,14 @@ tabku/
 │   │   ├── StringFlow/
 │   │   │   └── StringFlowHighway.tsx  # Canvas scrolling highway not 3.0 detik
 │   │   └── Telemetry/
-│   │       └── TelemetryBar.tsx       # Kontrol transport DAW & info telemetri
+│   │       ├── TelemetryBar.tsx           # Kontrol transport DAW & orchestrator
+│   │       ├── SectionRibbon.tsx          # Mini-map arrangement ribbon seksi lagu
+│   │       ├── ScrubberTimeline.tsx       # Progress bar interaktif & A-B loop handles
+│   │       ├── SectionSelectorCluster.tsx # Indikator Bar & popover seksi lagu
+│   │       ├── PracticeToolsCluster.tsx   # Speed, Transpose, Trainer, A-B Loop, Flip
+│   │       ├── TransportCenterCluster.tsx # Stop, Big Play/Pause, timer readout
+│   │       ├── AudioToolsCluster.tsx      # Metronom, Count-In, Master Volume, Partitur
+│   │       └── ChordDiagram.tsx           # Mini chord diagram visualizer
 │   ├── hooks/
 │   │   ├── usePlayback.ts             # State playback: play/pause, speed, volume, seek
 │   │   ├── useMetronome.ts            # Click track, count-in, penjadwalan beat RAF
@@ -159,7 +166,13 @@ Berdasarkan pencapaian v2.0, berikut adalah daftar kebutuhan fungsional dan tekn
   - **Scrubber Dividers & Rich Hover Tooltip:** Divider halus pada track scrubber dan floating tooltip lengkap: `[Icon] [SECTION] · BAR [X] · [mm:ss]`.
   - **Left Cluster Section Selector:** Tombol `BAR [X]`, tombol `⏮` (seksi sebelumnya), pil seksi aktif dengan ikon & dropdown caret, serta tombol `⏭` (seksi berikutnya).
   - **Section Jump Popover:** Klik pil seksi membuka daftar dropdown seluruh seksi lagu beserta timestamp untuk navigasi cepat.
-  - **Keyboard Shortcuts:** `Shift + ←` (Seksi Sebelumnya) dan `Shift + →` (Seksi Berikutnya).
+#### FR-NEXT-10: Stage / Fullscreen Focus Mode (Zen Mode) — ✅ DONE
+* **Fitur Utama:**
+  - **Tampilan Zen Penuh:** Menyembunyikan `TopNav` dan `TrackSelector` (+108px area vertikal) untuk memaksimalkan tinggi visual `StringFlowHighway` dan `FlatFretboard2D` saat gitaris meletakkan laptop/tablet di *music stand*.
+  - **Floating Stage HUD:** Overlay pill transparan di bagian atas yang menampilkan badge `STAGE FOCUS`, judul lagu, nama trek aktif, tempo/tuning, quick track selector, dan tombol `KELUAR`.
+  - **Sinkronisasi Web Fullscreen API:** Terintegrasi langsung dengan `document.documentElement.requestFullscreen()` dan mendengarkan event native browser `fullscreenchange` saat pengguna menekan tombol `Esc`.
+  - **Shortcut Keyboard:** Tekan tombol `Z` untuk masuk/keluar dari Stage Mode secara instan.
+  - **Dual Trigger Controls:** Tombol `STAGE` tersedia di header `TopNav` dan di transport bar bawah (`AudioToolsCluster`).
 
 ---
 
@@ -187,6 +200,8 @@ Berdasarkan pencapaian v2.0, berikut adalah daftar kebutuhan fungsional dan tekn
 [DILOMPATI] Fase 4: Mic Interactive Pitch Detection (FR-NEXT-07) - Tidak diperlukan
 [SELESAI]   Fase 5: Responsivitas Tablet & Custom Themes (FR-NEXT-08)
 [SELESAI]   Fase 6: Mini-Map Section Seekbar & Navigation (FR-NEXT-09)
+[SELESAI]   Refactor: Dekomposisi TelemetryBar.tsx ke 6 sub-komponen modular (SectionRibbon, Scrubber, Clusters)
+[SELESAI]   Fase 7: Stage / Fullscreen Focus Mode (Zen Mode) (FR-NEXT-10)
 ```
 
 Dokumen ini menjadi acuan utama pengembangan teknis dan penambahan fitur lanjutan untuk proyek **TabKu**.

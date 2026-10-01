@@ -41,16 +41,16 @@ export function useSpeedTrainer(
       setLoopCount(prev => {
         const newCount = prev + 1;
         if (nextSpeed >= t) {
-          setNotification(`🎯 TARGET TERCAPAI: ${Math.round(nextSpeed * 100)}% (Siklus ${newCount}x)!`);
+          setNotification(`TARGET TERCAPAI: ${Math.round(nextSpeed * 100)}% (Siklus ${newCount}x)!`);
         } else {
-          setNotification(`⚡ TEMPO NAIK: ${Math.round(nextSpeed * 100)}% (+${Math.round(s * 100)}%) · Loop ${newCount}x`);
+          setNotification(`TEMPO NAIK: ${Math.round(nextSpeed * 100)}% (+${Math.round(s * 100)}%) · Loop ${newCount}x`);
         }
         return newCount;
       });
     } else {
       setLoopCount(prev => {
         const newCount = prev + 1;
-        setNotification(`🎯 SIKLUS ${newCount}x: TEMPO PENUH ${Math.round(t * 100)}%`);
+        setNotification(`SIKLUS ${newCount}x: TEMPO PENUH ${Math.round(t * 100)}%`);
         return newCount;
       });
     }

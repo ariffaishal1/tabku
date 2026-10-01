@@ -1,4 +1,5 @@
 import React from 'react';
+import { Compass, Music } from 'lucide-react';
 import { ROOT_NOTES, SCALE_DEFINITIONS, SCALE_POSITION_OPTIONS, type ScaleDisplayMode } from '../../services/scaleTheory';
 
 interface ScaleLabBarProps {
@@ -99,6 +100,9 @@ export const ScaleLabBar: React.FC<ScaleLabBarProps> = ({
         {/* Label */}
         <span
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
             fontSize: '9px',
             fontWeight: 900,
             color: 'var(--accent-coral)',
@@ -107,7 +111,8 @@ export const ScaleLabBar: React.FC<ScaleLabBarProps> = ({
             whiteSpace: 'nowrap',
           }}
         >
-          🗺️ SCALE LAB
+          <Compass size={11} />
+          <span>SCALE LAB</span>
         </span>
 
         <span style={{ color: 'var(--border-strong)', fontSize: '10px' }}>|</span>
@@ -254,7 +259,7 @@ export const ScaleLabBar: React.FC<ScaleLabBarProps> = ({
             }}
             title={`Active Backing Track: ${backingProgressionName}`}
           >
-            <span>🎵</span>
+            <Music size={11} style={{ flexShrink: 0 }} />
             <span
               style={{
                 maxWidth: '200px',

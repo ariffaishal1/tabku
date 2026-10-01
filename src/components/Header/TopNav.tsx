@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { PRESET_SONGS } from '../../services/presetTabs';
-import { Upload, ChevronDown, Palette } from 'lucide-react';
+import { Upload, ChevronDown, Palette, Maximize2, Loader2, Keyboard, Compass } from 'lucide-react';
 import { midiToNoteName } from '../../utils/guitarMath';
 import type { ThemeId, ThemeOption } from '../../types/theme';
 
@@ -22,12 +22,14 @@ interface TopNavProps {
   themeId?: ThemeId;
   themeOptions?: ThemeOption[];
   onSelectTheme?: (themeId: ThemeId) => void;
+  isStageMode?: boolean;
+  onToggleStageMode?: () => void;
 }
 
 export const TopNav: React.FC<TopNavProps> = ({
   songTitle,
   songArtist,
-  activeTrackName,
+  activeTrackName: _activeTrackName,
   tempo,
   timeSignature = '4/4',
   tuning,
@@ -42,6 +44,8 @@ export const TopNav: React.FC<TopNavProps> = ({
   themeId = 'cyber-neon',
   themeOptions = [],
   onSelectTheme,
+  isStageMode = false,
+  onToggleStageMode,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -102,309 +106,337 @@ export const TopNav: React.FC<TopNavProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 20px',
-        height: '70px',
+        padding: '0 12px',
+        height: '38px',
         backgroundColor: 'var(--bg-primary)',
         borderBottom: '1px solid var(--border-subtle)',
-        gap: '20px',
+        gap: '10px',
         userSelect: 'none',
         boxSizing: 'border-box',
+        flexShrink: 0,
       }}
     >
-      {/* 1. Left: Cyber Studio Breadcrumb & Big Title */}
-      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-        {/* Breadcrumb */}
+      {/* 1. Left: Brand & Single Unified Song / Preset Selector (Zero Duplicate Title Text) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexShrink: 1 }}>
+        {/* Brand Logo Pill */}
         <div
           style={{
-            fontSize: '9.5px',
-            fontFamily: 'var(--font-mono)',
-            fontWeight: 800,
-            color: 'var(--text-muted)',
-            letterSpacing: '1px',
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            marginBottom: '2px',
+            gap: '5px',
+            fontSize: '11.5px',
+            fontWeight: 900,
+            fontFamily: 'var(--font-mono)',
+            letterSpacing: '1px',
+            color: 'var(--text-primary)',
+            flexShrink: 0,
           }}
+          title="TabKu — 3D Guitar Tab Visualizer & Studio Practice"
         >
-          <span style={{ color: 'var(--accent-coral)' }}>\\</span>
-          <span>{tuning.length}-STRING</span>
-          <span style={{ color: 'var(--border-strong)' }}>/</span>
-          <span>STRING FLOW</span>
-          <span style={{ color: 'var(--border-strong)' }}>/</span>
-          <span style={{ color: 'var(--accent-coral)' }}>{activeTrackName.toUpperCase()}</span>
+          <span
+            style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--accent-coral)',
+              boxShadow: '0 0 8px var(--accent-coral)',
+              display: 'inline-block',
+            }}
+          />
+          <span>TABKU</span>
         </div>
 
-        {/* Big Track Title & Controls */}
-        <div className="topnav-title-bar" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1
-            className="topnav-song-title"
+        {/* Unified Song / Preset Selector */}
+        <div style={{ position: 'relative', minWidth: 0, maxWidth: '240px' }}>
+          <select
+            value={selectedPresetId}
+            onChange={(e) => onSelectPreset(e.target.value)}
+            className="studio-btn-base"
             style={{
-              margin: 0,
-              fontSize: '18px',
-              fontWeight: 900,
-              fontFamily: 'var(--font-mono)',
-              letterSpacing: '0.5px',
+              appearance: 'none',
+              backgroundColor: 'var(--bg-control)',
               color: 'var(--text-primary)',
+              border: '1px solid var(--border-medium)',
+              borderRadius: '3px',
+              height: '24px',
+              padding: '0 20px 0 7px',
+              fontSize: '10px',
+              fontWeight: 700,
+              fontFamily: 'var(--font-mono)',
+              cursor: 'pointer',
+              outline: 'none',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              maxWidth: '360px',
+              maxWidth: '240px',
+              display: 'block',
             }}
-            title={`${songArtist} \\ ${songTitle}`}
+            title={`Lagu aktif: ${songArtist} - ${songTitle}\nKlik untuk beralih lagu preset`}
           >
-            {songArtist.toUpperCase()} <span style={{ color: 'var(--accent-coral)' }}>\\</span> {songTitle.toUpperCase()}
-          </h1>
+            {!PRESET_SONGS.some((p) => p.id === selectedPresetId) && (
+              <option value={selectedPresetId}>
+                {songTitle} ({songArtist})
+              </option>
+            )}
+            {PRESET_SONGS.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.title} · {preset.artist}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            size={10}
+            color="var(--text-muted)"
+            style={{
+              position: 'absolute',
+              right: '6px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              pointerEvents: 'none',
+            }}
+          />
+        </div>
 
-          {/* Preset Selector Dropdown */}
+        {/* Open Guitar Pro File Button */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".gp,.gp5,.gpx,.gp4,.gp3"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="studio-btn-base"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            height: '24px',
+            padding: '0 7px',
+            borderRadius: '3px',
+            border: '1px solid var(--border-medium)',
+            backgroundColor: 'var(--bg-control)',
+            color: 'var(--text-secondary)',
+            fontSize: '9.5px',
+            fontWeight: 800,
+            fontFamily: 'var(--font-mono)',
+            cursor: 'pointer',
+            flexShrink: 0,
+            boxSizing: 'border-box',
+          }}
+          title="Buka file Guitar Pro (.gp, .gp5, .gpx)"
+        >
+          {isLoadingScore ? (
+            <Loader2 size={11} className="spin-anim" />
+          ) : (
+            <Upload size={11} />
+          )}
+          <span>{isLoadingScore ? 'MEMUAT...' : 'BUKA .GP'}</span>
+        </button>
+      </div>
+
+      {/* 2. Center: Utility Action Buttons */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+        {/* Theme Selector (FR-NEXT-08) */}
+        {onSelectTheme && themeOptions.length > 0 && (
           <div style={{ position: 'relative' }}>
             <select
-              value={selectedPresetId}
-              onChange={(e) => onSelectPreset(e.target.value)}
+              value={themeId}
+              onChange={(e) => onSelectTheme(e.target.value as ThemeId)}
               className="studio-btn-base"
               style={{
                 appearance: 'none',
                 backgroundColor: 'var(--bg-control)',
                 color: 'var(--text-secondary)',
                 border: '1px solid var(--border-medium)',
-                borderRadius: '4px',
-                padding: '5px 24px 5px 10px',
-                fontSize: '11px',
-                fontWeight: 600,
+                borderRadius: '3px',
+                height: '24px',
+                padding: '0 18px 0 6px',
+                fontSize: '9.5px',
+                fontWeight: 700,
                 fontFamily: 'var(--font-mono)',
                 cursor: 'pointer',
                 outline: 'none',
+                boxSizing: 'border-box',
               }}
-              title="Pilih lagu preset"
+              title="Pilih Tema Visual Studio"
             >
-              {PRESET_SONGS.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.title} ({preset.artist})
+              {themeOptions.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name.toUpperCase()}
                 </option>
               ))}
             </select>
-            <ChevronDown
-              size={12}
-              color="var(--text-muted)"
+            <Palette
+              size={10}
+              color="var(--accent-coral)"
               style={{
                 position: 'absolute',
-                right: '8px',
+                right: '5px',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 pointerEvents: 'none',
               }}
             />
           </div>
+        )}
 
-          {/* Open Guitar Pro File Button */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".gp,.gp5,.gpx,.gp4,.gp3"
-            style={{ display: 'none' }}
-            onChange={handleFileChange}
-          />
+        {/* Keyboard Shortcuts Help Button */}
+        {onOpenShortcuts && (
           <button
-            onClick={() => fileInputRef.current?.click()}
+            onClick={onOpenShortcuts}
             className="studio-btn-base"
+            title="Daftar Keyboard Shortcuts (Tekan '?')"
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '5px',
-              padding: '5px 10px',
-              borderRadius: '4px',
+              gap: '4px',
+              height: '24px',
+              padding: '0 6px',
+              borderRadius: '3px',
               border: '1px solid var(--border-medium)',
               backgroundColor: 'var(--bg-control)',
               color: 'var(--text-secondary)',
-              fontSize: '11px',
-              fontWeight: 700,
-              fontFamily: 'var(--font-mono)',
-              cursor: 'pointer',
-            }}
-            title="Buka file Guitar Pro (.gp, .gp5, .gpx)"
-          >
-            {isLoadingScore ? (
-              <span className="spin-anim" style={{ display: 'inline-block', fontSize: '11px' }}>⚙️</span>
-            ) : (
-              <Upload size={12} />
-            )}
-            <span>{isLoadingScore ? 'MEMUAT...' : 'BUKA .GP'}</span>
-          </button>
-
-          {/* Theme Selector (FR-NEXT-08) */}
-          {onSelectTheme && themeOptions.length > 0 && (
-            <div style={{ position: 'relative' }}>
-              <select
-                value={themeId}
-                onChange={(e) => onSelectTheme(e.target.value as ThemeId)}
-                className="studio-btn-base"
-                style={{
-                  appearance: 'none',
-                  backgroundColor: 'var(--bg-control)',
-                  color: 'var(--text-secondary)',
-                  border: '1px solid var(--border-medium)',
-                  borderRadius: '4px',
-                  padding: '5px 24px 5px 8px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-mono)',
-                  cursor: 'pointer',
-                  outline: 'none',
-                }}
-                title="Pilih Tema Studio (Cyber Neon / Classic Parchment / Stealth Black)"
-              >
-                {themeOptions.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.icon} {t.name.toUpperCase()}
-                  </option>
-                ))}
-              </select>
-              <Palette
-                size={12}
-                color="var(--accent-coral)"
-                style={{
-                  position: 'absolute',
-                  right: '7px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  pointerEvents: 'none',
-                }}
-              />
-            </div>
-          )}
-
-          {/* Keyboard Shortcuts Help Button */}
-          {onOpenShortcuts && (
-            <button
-              onClick={onOpenShortcuts}
-              className="studio-btn-base"
-              title="Daftar Keyboard Shortcuts (Tekan '?')"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '5px 9px',
-                borderRadius: '4px',
-                border: '1px solid var(--border-medium)',
-                backgroundColor: 'var(--bg-control)',
-                color: 'var(--text-secondary)',
-                fontSize: '11px',
-                fontWeight: 700,
-                fontFamily: 'var(--font-mono)',
-                cursor: 'pointer',
-              }}
-            >
-              <span>⌨️</span>
-              <span>SHORTCUTS</span>
-              <span
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 900,
-                  color: 'var(--accent-coral)',
-                  backgroundColor: 'var(--accent-coral-glow)',
-                  border: '1px solid var(--accent-coral)',
-                  borderRadius: '3px',
-                  padding: '0 4px',
-                  lineHeight: '13px',
-                }}
-              >
-                ?
-              </span>
-            </button>
-          )}
-
-          {/* Scale Lab Toggle Button */}
-          <button
-            onClick={onToggleScaleMode}
-            className={isScaleMode ? 'studio-btn-coral' : 'scale-lab-btn-off'}
-            title="Toggle Scale Lab — Tampilkan roadmap tangga nada di fretboard (Key: S)"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '5px 10px',
-              borderRadius: '4px',
-              border: isScaleMode ? '1px solid var(--accent-coral)' : '1px solid var(--border-medium)',
-              backgroundColor: isScaleMode ? 'var(--accent-coral)' : 'var(--bg-control)',
-              color: isScaleMode ? 'var(--text-inverse)' : 'var(--text-secondary)',
-              fontSize: '11px',
+              fontSize: '9.5px',
               fontWeight: 800,
               fontFamily: 'var(--font-mono)',
               cursor: 'pointer',
-              boxShadow: isScaleMode ? '0 0 10px var(--accent-coral-glow)' : 'none',
+              boxSizing: 'border-box',
             }}
           >
-            <span>🗺️</span>
-            <span>SCALE LAB</span>
+            <Keyboard size={11} />
+            <span>SHORTCUTS</span>
+            <span
+              style={{
+                fontSize: '8px',
+                fontWeight: 900,
+                color: 'var(--accent-coral)',
+                backgroundColor: 'var(--accent-coral-glow)',
+                border: '1px solid var(--accent-coral)',
+                borderRadius: '2px',
+                padding: '0 3px',
+                lineHeight: '11px',
+              }}
+            >
+              ?
+            </span>
           </button>
-        </div>
+        )}
+
+        {/* Scale Lab Toggle Button */}
+        <button
+          onClick={onToggleScaleMode}
+          className={isScaleMode ? 'studio-btn-coral' : 'scale-lab-btn-off'}
+          title="Toggle Scale Lab — Tampilkan roadmap tangga nada di fretboard (Key: S)"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            height: '24px',
+            padding: '0 7px',
+            borderRadius: '3px',
+            border: isScaleMode ? '1px solid var(--accent-coral)' : '1px solid var(--border-medium)',
+            backgroundColor: isScaleMode ? 'var(--accent-coral)' : 'var(--bg-control)',
+            color: isScaleMode ? 'var(--text-inverse)' : 'var(--text-secondary)',
+            fontSize: '9.5px',
+            fontWeight: 800,
+            fontFamily: 'var(--font-mono)',
+            cursor: 'pointer',
+            boxShadow: isScaleMode ? '0 0 8px var(--accent-coral-glow)' : 'none',
+            boxSizing: 'border-box',
+          }}
+        >
+          <Compass size={11} />
+          <span>SCALE LAB</span>
+        </button>
+
+        {/* Stage / Fullscreen Focus Mode Button */}
+        {onToggleStageMode && (
+          <button
+            onClick={onToggleStageMode}
+            className="studio-btn-base"
+            title="Stage / Fullscreen Focus Mode (Shortcut: Z)"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              height: '24px',
+              padding: '0 7px',
+              borderRadius: '3px',
+              border: isStageMode ? '1px solid var(--accent-cyan)' : '1px solid var(--border-medium)',
+              backgroundColor: isStageMode ? 'rgba(139, 233, 253, 0.15)' : 'var(--bg-control)',
+              color: isStageMode ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+              fontSize: '9.5px',
+              fontWeight: 800,
+              fontFamily: 'var(--font-mono)',
+              cursor: 'pointer',
+              boxShadow: isStageMode ? '0 0 8px rgba(139, 233, 253, 0.3)' : 'none',
+              transition: 'all 0.15s ease',
+              boxSizing: 'border-box',
+            }}
+          >
+            <Maximize2 size={11} color={isStageMode ? 'var(--accent-cyan)' : 'currentColor'} />
+            <span>STAGE</span>
+            <span
+              style={{
+                fontSize: '8px',
+                fontWeight: 900,
+                color: isStageMode ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border-medium)',
+                borderRadius: '2px',
+                padding: '0 3px',
+                lineHeight: '11px',
+              }}
+            >
+              Z
+            </span>
+          </button>
+        )}
       </div>
 
-      {/* 2. Right: Develop Device Studio Tuning Card */}
+      {/* 3. Right: Sleek Studio Tuning & Tempo Badge (Zero Duplicate Text) */}
       <div
         style={{
           display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '6px',
           backgroundColor: 'var(--accent-coral)',
-          borderRadius: '4px',
-          padding: '6px 14px',
-          minWidth: '160px',
+          borderRadius: '3px',
+          height: '24px',
+          padding: '0 8px',
           color: 'var(--text-inverse)',
-          boxShadow: '0 0 16px var(--accent-coral-glow)',
+          boxShadow: '0 0 10px var(--accent-coral-glow)',
           boxSizing: 'border-box',
           flexShrink: 0,
+          fontSize: '9.5px',
+          fontFamily: 'var(--font-mono)',
+          fontWeight: 800,
+          letterSpacing: '0.4px',
+          userSelect: 'none',
         }}
+        title={`Tuning: ${tuningName} (${tuningNotesFormatted})\nTempo: ${tempo} BPM · Birama: ${timeSignature}`}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '11px',
-            fontWeight: 900,
-            fontFamily: 'var(--font-mono)',
-            letterSpacing: '0.8px',
-          }}
-        >
-          <span>
-            {tuningName}
-            {transpose !== 0 && (
-              <span style={{ marginLeft: '4px', fontSize: '9.5px', opacity: 0.9, backgroundColor: 'rgba(0,0,0,0.18)', padding: '1px 4px', borderRadius: '3px' }}>
-                {transpose > 0 ? `+${transpose}` : transpose}st
-              </span>
-            )}
+        <span>{tuningName}</span>
+        {transpose !== 0 && (
+          <span
+            style={{
+              fontSize: '8px',
+              backgroundColor: 'rgba(0,0,0,0.22)',
+              padding: '0 3px',
+              borderRadius: '2px',
+            }}
+          >
+            {transpose > 0 ? `+${transpose}` : transpose}st
           </span>
-          <span style={{ fontSize: '10px', opacity: 0.85 }}>{tempo} BPM</span>
-        </div>
-
-        <div
-          style={{
-            fontSize: '11.5px',
-            fontWeight: 800,
-            fontFamily: 'var(--font-mono)',
-            letterSpacing: '1.2px',
-            marginTop: '2px',
-          }}
-        >
-          {tuningNotesFormatted}
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '9px',
-            fontWeight: 700,
-            fontFamily: 'var(--font-mono)',
-            opacity: 0.85,
-            marginTop: '1px',
-          }}
-        >
-          <span>METER: {timeSignature}</span>
-          <span>TABKU STUDIO</span>
-        </div>
+        )}
+        <span style={{ opacity: 0.6 }}>·</span>
+        <span style={{ letterSpacing: '0.6px', opacity: 0.95 }}>{tuningNotesFormatted}</span>
+        <span style={{ opacity: 0.6 }}>·</span>
+        <span style={{ opacity: 0.9 }}>{tempo} BPM</span>
+        <span style={{ opacity: 0.6 }}>·</span>
+        <span style={{ opacity: 0.9 }}>{timeSignature}</span>
       </div>
     </header>
   );

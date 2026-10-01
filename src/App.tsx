@@ -18,8 +18,14 @@ import { KeyboardShortcutsModal } from './components/Modals/KeyboardShortcutsMod
 import { ScaleLabBar } from './components/ScaleLab/ScaleLabBar';
 import { CountInOverlay } from './components/Overlays/CountInOverlay';
 import { SpeedTrainerHUD } from './components/Overlays/SpeedTrainerHUD';
+import { StageModeHUD } from './components/Overlays/StageModeHUD';
 import { SplashScreen } from './components/Overlays/SplashScreen';
 import { ToastContainer } from './components/Overlays/ToastNotification';
+import {
+  requestNativeFullscreen,
+  exitNativeFullscreen,
+  getActiveFullscreenElement,
+} from './utils/fullscreen';
 
 // Custom hooks
 import { usePlayback } from './hooks/usePlayback';
@@ -37,12 +43,55 @@ import { useTheme } from './hooks/useTheme';
 export const App: React.FC = () => {
   const alphaTabRef = useRef<AlphaTabSheetRef>(null);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isStageMode, setIsStageMode] = useState(false);
 
   // ──────────────────────────────────────────────
   // Core domain hooks
   // ──────────────────────────────────────────────
   const theme = useTheme();
   const toast = useToast();
+
+  // Fullscreen / Stage Focus Mode sync
+  const isStageModeRef = useRef(false);
+  useEffect(() => {
+    isStageModeRef.current = isStageMode;
+  }, [isStageMode]);
+
+  const toggleStageMode = useCallback(async () => {
+    const next = !isStageModeRef.current;
+    isStageModeRef.current = next;
+    setIsStageMode(next);
+
+    if (next) {
+      const fsResult = await requestNativeFullscreen();
+      if (fsResult.success) {
+        toast.showInfo('Stage Focus Mode', 'Tampilan penuh aktif. Tekan Z atau Esc untuk kembali.');
+      } else {
+        toast.showInfo(
+          'Stage Focus Mode',
+          'Tampilan fokus aktif. (Untuk layar penuh Chrome tanpa tab, tekan F11 atau buka di tab terpisah).'
+        );
+      }
+    } else {
+      await exitNativeFullscreen();
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const activeEl = getActiveFullscreenElement();
+      if (!activeEl && isStageModeRef.current) {
+        isStageModeRef.current = false;
+        setIsStageMode(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
   const playback = usePlayback(alphaTabRef);
   const scaleLab = useScaleLab(PRESET_SONGS[0].tempo);
 
@@ -215,10 +264,10 @@ export const App: React.FC = () => {
 
       if ((playback.speedRef.current ?? 1) >= 1.0) {
         playback.changeSpeed(0.5);
-        speedTrainer.setNotification('⚡ SPEED TRAINER AKTIF: Dimulai dari 50% (+5%/loop)');
+        speedTrainer.setNotification('SPEED TRAINER AKTIF: Dimulai dari 50% (+5%/loop)');
       } else {
         speedTrainer.setNotification(
-          `⚡ SPEED TRAINER AKTIF: ${Math.round((playback.speedRef.current ?? 1) * 100)}% ➔ 100%`,
+          `SPEED TRAINER AKTIF: ${Math.round((playback.speedRef.current ?? 1) * 100)}% ➔ 100%`,
         );
       }
     }
@@ -266,6 +315,7 @@ export const App: React.FC = () => {
     speed: playback.speed,
     transpose: song.transpose,
     onCycleTheme: theme.cycleTheme,
+    onToggleStageMode: toggleStageMode,
   });
 
   // ──────────────────────────────────────────────
@@ -283,34 +333,40 @@ export const App: React.FC = () => {
       }}
     >
       {/* 1. Header Toolbar */}
-      <TopNav
-        songTitle={song.songTitle}
-        songArtist={song.songArtist}
-        activeTrackName={activeTrack?.name || 'Lead Guitar'}
-        tempo={song.tempo}
-        timeSignature={met.timeSignature}
-        tuning={activeTuning}
-        selectedPresetId={song.selectedPresetId}
-        onSelectPreset={song.handleSelectPreset}
-        onFileUpload={song.handleFileUpload}
-        transpose={song.transpose}
-        isScaleMode={scaleLab.isScaleMode}
-        onToggleScaleMode={scaleLab.toggleScaleMode}
-        onOpenShortcuts={() => setIsShortcutsOpen(true)}
-        isLoadingScore={engine.isLoadingScore}
-        themeId={theme.themeId}
-        themeOptions={theme.themeOptions}
-        onSelectTheme={theme.setTheme}
-      />
+      {!isStageMode && (
+        <TopNav
+          songTitle={song.songTitle}
+          songArtist={song.songArtist}
+          activeTrackName={activeTrack?.name || 'Lead Guitar'}
+          tempo={song.tempo}
+          timeSignature={met.timeSignature}
+          tuning={activeTuning}
+          selectedPresetId={song.selectedPresetId}
+          onSelectPreset={song.handleSelectPreset}
+          onFileUpload={song.handleFileUpload}
+          transpose={song.transpose}
+          isScaleMode={scaleLab.isScaleMode}
+          onToggleScaleMode={scaleLab.toggleScaleMode}
+          onOpenShortcuts={() => setIsShortcutsOpen(true)}
+          isLoadingScore={engine.isLoadingScore}
+          themeId={theme.themeId}
+          themeOptions={theme.themeOptions}
+          onSelectTheme={theme.setTheme}
+          isStageMode={isStageMode}
+          onToggleStageMode={toggleStageMode}
+        />
+      )}
 
       {/* 2. Multi-Instrument Track Flow Switcher */}
-      <TrackSelector
-        tracks={song.tracks}
-        activeTrackIndex={song.activeTrackIndex}
-        onSelectTrack={song.handleSelectTrack}
-        onToggleMute={song.handleToggleMute}
-        onToggleSolo={song.handleToggleSolo}
-      />
+      {!isStageMode && (
+        <TrackSelector
+          tracks={song.tracks}
+          activeTrackIndex={song.activeTrackIndex}
+          onSelectTrack={song.handleSelectTrack}
+          onToggleMute={song.handleToggleMute}
+          onToggleSolo={song.handleToggleSolo}
+        />
+      )}
 
       {/* 2b. Scale Lab Control Bar */}
       <ScaleLabBar
@@ -343,6 +399,20 @@ export const App: React.FC = () => {
       >
         {/* Speed Trainer Floating HUD */}
         <SpeedTrainerHUD notification={speedTrainer.notification} />
+
+        {/* Stage Mode / Zen Mode Floating HUD */}
+        <StageModeHUD
+          isActive={isStageMode}
+          songTitle={song.songTitle}
+          songArtist={song.songArtist}
+          activeTrackName={activeTrack?.name || 'Lead Guitar'}
+          tracks={song.tracks}
+          activeTrackIndex={song.activeTrackIndex}
+          onSelectTrack={song.handleSelectTrack}
+          tempo={song.tempo}
+          tuningNames={timeline?.tuningNames || activeTuningNames}
+          onExitStageMode={toggleStageMode}
+        />
 
         {/* Upper Panel: Horizontal Scrolling Highway */}
         {!scaleLab.isScaleMode && (
@@ -494,6 +564,8 @@ export const App: React.FC = () => {
           speedTrainerStep={speedTrainer.step}
           speedTrainerTarget={speedTrainer.target}
           speedTrainerLoopCount={speedTrainer.loopCount}
+          isStageMode={isStageMode}
+          onToggleStageMode={toggleStageMode}
         />
       </div>
 

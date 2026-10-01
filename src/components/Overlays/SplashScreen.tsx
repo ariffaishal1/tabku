@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { RefreshCw, AlertCircle } from 'lucide-react';
+import { RefreshCw, AlertCircle, Loader2, Sparkles } from 'lucide-react';
 
 interface SplashScreenProps {
   isLoading: boolean;
@@ -220,7 +220,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
               }}
             >
               <span style={{ color: 'var(--accent-coral)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span className="spin-anim" style={{ display: 'inline-block' }}>⚙️</span>
+                <Loader2 size={12} className="spin-anim" />
                 <span>{statusText}</span>
               </span>
               <span style={{ color: 'var(--text-primary)', fontWeight: 900 }}>
@@ -243,7 +243,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
                 fontSize: '10.5px',
               }}
             >
-              <span style={{ color: '#ffb86c' }}>💡 TIP:</span>
+              <span style={{ color: '#ffb86c', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <Sparkles size={12} />
+                <span>TIP:</span>
+              </span>
               <span>Tekan <strong style={{ color: '#ffffff' }}>[Spasi]</strong> untuk Play/Pause, <strong style={{ color: '#ffffff' }}>[?]</strong> untuk panduan keyboard</span>
             </div>
           </div>
