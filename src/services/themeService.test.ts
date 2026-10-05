@@ -85,6 +85,17 @@ describe('themeService', () => {
     expect(getStoredTheme()).toBe(DEFAULT_THEME_ID);
   });
 
+  it('returns DEFAULT_THEME_ID if localStorage throws an error', () => {
+    const originalGetItem = globalThis.localStorage.getItem;
+    globalThis.localStorage.getItem = () => {
+      throw new Error('Access denied');
+    };
+
+    expect(getStoredTheme()).toBe(DEFAULT_THEME_ID);
+
+    globalThis.localStorage.getItem = originalGetItem;
+  });
+
   it('applies data-theme attribute to document element', () => {
     applyThemeToDocument('stealth-black');
     expect(globalThis.document.documentElement.getAttribute('data-theme')).toBe('stealth-black');
