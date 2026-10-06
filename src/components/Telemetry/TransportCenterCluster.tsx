@@ -54,6 +54,7 @@ export const TransportCenterCluster: React.FC<TransportCenterClusterProps> = ({
           boxSizing: 'border-box',
         }}
         title="Hentikan & Reset ke Awal"
+        aria-label="Hentikan & Reset ke Awal"
       >
         <Square size={11} />
       </button>
@@ -83,6 +84,7 @@ export const TransportCenterCluster: React.FC<TransportCenterClusterProps> = ({
           boxSizing: 'border-box',
         }}
         title={isCountingIn ? 'Hitungan awal aktif... Klik untuk batal' : isPlaying ? 'Jeda Lagu [Spasi]' : 'Putar Lagu [Spasi]'}
+        aria-label={isCountingIn ? 'Hitungan awal aktif... Klik untuk batal' : isPlaying ? 'Jeda Lagu [Spasi]' : 'Putar Lagu [Spasi]'}
       >
         {isCountingIn ? (
           <>
