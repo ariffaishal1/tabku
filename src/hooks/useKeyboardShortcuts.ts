@@ -23,6 +23,7 @@ interface UseKeyboardShortcutsProps {
   onPrevSection?: () => void;
   onNextSection?: () => void;
   onToggleStageMode?: () => void;
+  onOpenShare?: () => void;
 }
 
 /**
@@ -68,6 +69,7 @@ export function useKeyboardShortcuts({
   onPrevSection,
   onNextSection,
   onToggleStageMode,
+  onOpenShare,
 }: UseKeyboardShortcutsProps): void {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -174,6 +176,13 @@ export function useKeyboardShortcuts({
           }
           break;
 
+        case 'KeyP':
+          if (!e.metaKey && !e.ctrlKey && onOpenShare) {
+            e.preventDefault();
+            onOpenShare();
+          }
+          break;
+
         case 'ArrowUp':
           if (e.shiftKey) {
             e.preventDefault();
@@ -197,6 +206,6 @@ export function useKeyboardShortcuts({
     onSpeedChange, onTransposeChange, transpose, toggleScaleMode,
     toggleSpeedTrainer, onSetLoopA, onSetLoopB, onClearABLoop,
     currentTimeMsRef, loopARef, loopBRef, setIsFlipped, setIsShortcutsOpen,
-    onCycleTheme, onToggleStageMode,
+    onCycleTheme, onToggleStageMode, onOpenShare,
   ]);
 }

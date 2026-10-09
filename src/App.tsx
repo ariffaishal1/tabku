@@ -15,6 +15,8 @@ import {
 } from './services/timelineExtractor';
 import type { TabNote, ActiveChord, ActiveTechnique } from './types/guitar';
 import { KeyboardShortcutsModal } from './components/Modals/KeyboardShortcutsModal';
+import { ShareSnapshotModal } from './components/Modals/ShareSnapshotModal';
+import { parsePracticeUrlParams } from './utils/snapshotService';
 import { ScaleLabBar } from './components/ScaleLab/ScaleLabBar';
 import { CountInOverlay } from './components/Overlays/CountInOverlay';
 import { SpeedTrainerHUD } from './components/Overlays/SpeedTrainerHUD';
@@ -40,10 +42,15 @@ import { useEngineState } from './hooks/useEngineState';
 import { useSongControls } from './hooks/useSongControls';
 import { useTheme } from './hooks/useTheme';
 
+const DEFAULT_TUNING = [64, 59, 55, 50, 45, 40];
+const DEFAULT_TUNING_NAMES = ['E4', 'B3', 'G3', 'D3', 'A2', 'E2'];
+
 export const App: React.FC = () => {
   const alphaTabRef = useRef<AlphaTabSheetRef>(null);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [isStageMode, setIsStageMode] = useState(false);
+  const pendingSeekRef = useRef<number | null>(null);
 
   // ──────────────────────────────────────────────
   // Core domain hooks
@@ -146,8 +153,8 @@ export const App: React.FC = () => {
 
   // Active track derived data
   const activeTrack = song.tracks.find((t) => t.index === song.activeTrackIndex) || song.tracks[0];
-  const activeTuning = activeTrack?.tuning || [64, 59, 55, 50, 45, 40];
-  const activeTuningNames = activeTrack?.tuningNames || ['E4', 'B3', 'G3', 'D3', 'A2', 'E2'];
+  const activeTuning = activeTrack?.tuning || DEFAULT_TUNING;
+  const activeTuningNames = activeTrack?.tuningNames || DEFAULT_TUNING_NAMES;
 
   // Derive NOW and NEXT beat states
   const beatState = useMemo(() => {
@@ -274,6 +281,91 @@ export const App: React.FC = () => {
   }, [speedTrainer, abLoop, playback]);
 
   // ──────────────────────────────────────────────
+  // Load Practice URL Parameters on Mount
+  // ──────────────────────────────────────────────
+  const initialUrlProcessedRef = useRef(false);
+  useEffect(() => {
+    if (initialUrlProcessedRef.current) return;
+    if (typeof window === 'undefined' || !window.location.search) return;
+
+    const params = parsePracticeUrlParams(window.location.search);
+    const hasParams = Object.keys(params).length > 0;
+    if (!hasParams) return;
+
+    initialUrlProcessedRef.current = true;
+
+    if (params.theme) {
+      theme.setTheme(params.theme as any);
+    }
+    if (params.presetId && params.presetId !== song.selectedPresetId) {
+      song.handleSelectPreset(params.presetId);
+    }
+    if (params.speed !== undefined && params.speed > 0) {
+      playback.changeSpeed(params.speed);
+    }
+    if (params.transpose !== undefined && params.transpose !== 0) {
+      song.handleTransposeChange(params.transpose);
+    }
+    if (params.loopA !== undefined && params.loopB !== undefined) {
+      abLoop.updateLoopA(params.loopA);
+      abLoop.updateLoopB(params.loopB);
+    }
+    if (params.seconds !== undefined && params.seconds > 0) {
+      pendingSeekRef.current = params.seconds;
+      setTimeout(() => {
+        if (pendingSeekRef.current !== null) {
+          handleSeek(params.seconds!);
+          pendingSeekRef.current = null;
+        }
+      }, 800);
+    }
+
+    toast.showInfo(
+      'Sesi Latihan Dimuat',
+      'Pengaturan lagu, tempo, dan loop dimuat dari tautan yang dibagikan.',
+    );
+  }, [song, playback, abLoop, theme, handleSeek, toast]);
+
+  // Snapshot metadata for export & share card
+  const snapshotMeta = useMemo(() => ({
+    songTitle: song.songTitle,
+    songArtist: song.songArtist,
+    activeTrackName: activeTrack?.name || 'Lead Guitar',
+    tempo: song.tempo,
+    timeSignature: met.timeSignature,
+    tuningName: 'Guitar Tuning',
+    tuningNotesFormatted: activeTuningNames.join(' '),
+    currentTimeMs: playback.currentTimeMs,
+    currentBar: currentBarIndex,
+    speed: playback.speed,
+    transpose: song.transpose,
+    loopAMs: abLoop.loopA !== null ? abLoop.loopA * 1000 : undefined,
+    loopBMs: abLoop.loopB !== null ? abLoop.loopB * 1000 : undefined,
+    activeTechnique: activeTechnique ? activeTechnique.type : undefined,
+    soundingNoteText: currentSoundingNotes.map((n) => n.noteName).filter(Boolean).join(', '),
+    themeName: theme.themeOptions.find((t) => t.id === theme.themeId)?.name || 'Cyber Dark',
+  }), [
+    song.songTitle, song.songArtist, activeTrack?.name,
+    song.tempo, met.timeSignature, activeTuningNames, playback.currentTimeMs,
+    currentBarIndex, playback.speed, song.transpose, abLoop.loopA, abLoop.loopB,
+    activeTechnique, currentSoundingNotes, theme.themeOptions, theme.themeId,
+  ]);
+
+  const snapshotUrlParams = useMemo(() => ({
+    presetId: song.selectedPresetId,
+    trackIndex: song.activeTrackIndex,
+    seconds: playback.currentTimeMs / 1000,
+    speed: playback.speed,
+    transpose: song.transpose,
+    loopA: abLoop.loopA ?? undefined,
+    loopB: abLoop.loopB ?? undefined,
+    theme: theme.themeId,
+  }), [
+    song.selectedPresetId, song.activeTrackIndex, playback.currentTimeMs,
+    playback.speed, song.transpose, abLoop.loopA, abLoop.loopB, theme.themeId,
+  ]);
+
+  // ──────────────────────────────────────────────
   // 60 FPS Animation Loop
   // ──────────────────────────────────────────────
   useAnimationLoop({
@@ -316,6 +408,7 @@ export const App: React.FC = () => {
     transpose: song.transpose,
     onCycleTheme: theme.cycleTheme,
     onToggleStageMode: toggleStageMode,
+    onOpenShare: () => setIsShareOpen(true),
   });
 
   // ──────────────────────────────────────────────
@@ -348,6 +441,7 @@ export const App: React.FC = () => {
           isScaleMode={scaleLab.isScaleMode}
           onToggleScaleMode={scaleLab.toggleScaleMode}
           onOpenShortcuts={() => setIsShortcutsOpen(true)}
+          onOpenShare={() => setIsShareOpen(true)}
           isLoadingScore={engine.isLoadingScore}
           themeId={theme.themeId}
           themeOptions={theme.themeOptions}
@@ -508,7 +602,16 @@ export const App: React.FC = () => {
           engine.clearLoadingOnError();
         }}
         onScoreLoading={engine.handleScoreLoading}
-        onScoreLoaded={engine.handleScoreLoaded}
+        onScoreLoaded={() => {
+          engine.handleScoreLoaded();
+          if (pendingSeekRef.current !== null) {
+            const seekSec = pendingSeekRef.current;
+            pendingSeekRef.current = null;
+            setTimeout(() => {
+              handleSeek(seekSec);
+            }, 300);
+          }
+        }}
       />
 
       {/* 5. Studio Telemetry & Transport Bar */}
@@ -573,6 +676,15 @@ export const App: React.FC = () => {
       <KeyboardShortcutsModal
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
+      />
+
+      {/* 6b. Share & Snapshot Modal */}
+      <ShareSnapshotModal
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        meta={snapshotMeta}
+        urlParams={snapshotUrlParams}
+        onShowToast={toast.showSuccess}
       />
 
       {/* 7. Splash Loading Screen for Initial Audio/SoundFont Engine */}

@@ -132,7 +132,7 @@ export function useMetronome(
       const beatsPerBar = parseInt(timeSignatureRef.current.split('/')[0]) || 4;
       const currentTempo = tempoRef.current || 120;
       const beatDurationMs = 60000 / currentTempo;
-      const beatIdx = Math.floor(interpolatedMs / beatDurationMs);
+      const beatIdx = Math.ceil(windowStart / beatDurationMs);
       const beatTimeMs = beatIdx * beatDurationMs;
       if (beatTimeMs >= windowStart && beatTimeMs < windowEnd && beatTimeMs > lastScheduled) {
         const delayWallSec = Math.max(0, (beatTimeMs - interpolatedMs) / (1000 * spd));

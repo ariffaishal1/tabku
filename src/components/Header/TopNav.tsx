@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { PRESET_SONGS } from '../../services/presetTabs';
-import { Upload, ChevronDown, Palette, Maximize2, Loader2, Keyboard, Compass } from 'lucide-react';
+import { Upload, ChevronDown, Palette, Maximize2, Loader2, Keyboard, Compass, Share2 } from 'lucide-react';
 import { midiToNoteName } from '../../utils/guitarMath';
 import type { ThemeId, ThemeOption } from '../../types/theme';
 
@@ -18,6 +18,7 @@ interface TopNavProps {
   isScaleMode?: boolean;
   onToggleScaleMode?: () => void;
   onOpenShortcuts?: () => void;
+  onOpenShare?: () => void;
   isLoadingScore?: boolean;
   themeId?: ThemeId;
   themeOptions?: ThemeOption[];
@@ -40,6 +41,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   isScaleMode = false,
   onToggleScaleMode,
   onOpenShortcuts,
+  onOpenShare,
   isLoadingScore = false,
   themeId = 'cyber-neon',
   themeOptions = [],
@@ -392,6 +394,35 @@ export const TopNav: React.FC<TopNavProps> = ({
             >
               Z
             </span>
+          </button>
+        )}
+
+        {/* Share / Export Snapshot Button */}
+        {onOpenShare && (
+          <button
+            onClick={onOpenShare}
+            className="studio-btn-base"
+            title="Bagikan / Ekspor Snapshot Sesi Latihan (Kartu Gambar PNG atau Tautan URL)"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              height: '24px',
+              padding: '0 7px',
+              borderRadius: '3px',
+              border: '1px solid var(--border-medium)',
+              backgroundColor: 'var(--bg-control)',
+              color: 'var(--text-secondary)',
+              fontSize: '9.5px',
+              fontWeight: 800,
+              fontFamily: 'var(--font-mono)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              boxSizing: 'border-box',
+            }}
+          >
+            <Share2 size={11} color="var(--accent-coral)" />
+            <span>SHARE</span>
           </button>
         )}
       </div>

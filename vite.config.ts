@@ -11,4 +11,22 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@coderline/alphatab'],
   },
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('@coderline/alphatab')) {
+            return 'alphatab-engine';
+          }
+          if (id.includes('lucide-react')) {
+            return 'vendor-icons';
+          }
+          if (id.includes('react') || id.includes('react-dom')) {
+            return 'vendor-react';
+          }
+        },
+      },
+    },
+  },
 });

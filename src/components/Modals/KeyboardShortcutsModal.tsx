@@ -71,6 +71,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ 
       title: 'SISTEM & BANTUAN',
       icon: <Sparkles size={13} color="var(--accent-green)" />,
       items: [
+        { keys: ['P'], description: 'Bagikan / Simpan Practice Snapshot (PNG & URL)', badge: 'Share' },
         { keys: ['Z'], description: 'Stage / Fullscreen Focus Mode (Zen Mode)', badge: 'Zen' },
         { keys: ['C'], description: 'Ganti Tema Studio (Cyber / Parchment / Stealth)', badge: 'Theme' },
         { keys: ['?'], description: 'Buka Cheat Sheet Pintasan Ini' },
